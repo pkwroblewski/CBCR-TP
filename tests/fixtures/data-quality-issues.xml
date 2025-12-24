@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  DATA QUALITY ISSUES TEST FILE
+  
+  This file contains the following data quality warnings/errors:
+  1. XFV-002: Revenue = 0 but employees > 0
+  2. XFV-001: TaxPaid much higher than TaxAccrued (unusual)
+  3. Inconsistent currencies (EUR and USD mixed)
+  4. Missing dividend exclusion from revenues
+  5. Negative profit with positive tax paid
+  6. Capital = 0 with significant assets
+-->
+<CBC_OECD xmlns="urn:oecd:ties:cbc:v2" version="2.0">
+  
+  <MessageSpec>
+    <SendingEntityIN>LU12345678901</SendingEntityIN>
+    <TransmittingCountry>LU</TransmittingCountry>
+    <ReceivingCountry>LU</ReceivingCountry>
+    <MessageType>CBC</MessageType>
+    <Language>EN</Language>
+    <MessageRefId>LU2023CBC0001234567890</MessageRefId>
+    <MessageTypeIndic>CBC401</MessageTypeIndic>
+    <ReportingPeriod>2023-12-31</ReportingPeriod>
+    <Timestamp>2024-01-15T14:30:00</Timestamp>
+  </MessageSpec>
+  
+  <CbcBody>
+    <ReportingEntity>
+      <Entity>
+        <ResCountryCode>LU</ResCountryCode>
+        <TIN issuedBy="LU">12345678901</TIN>
+        <Name>Data Quality Test Holdings S.à r.l.</Name>
+        <Address>
+          <CountryCode>LU</CountryCode>
+          <AddressFree>Test Address, Luxembourg</AddressFree>
+        </Address>
+      </Entity>
+      <NameMNEGroup>Data Quality Test Group</NameMNEGroup>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001RE001</DocRefId>
+      </DocSpec>
+    </ReportingEntity>
+    
+    <!-- Jurisdiction with Revenue = 0 but Employees > 0 -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR001</DocRefId>
+      </DocSpec>
+      <ResCountryCode>LU</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <!-- WARNING: Zero revenue but 150 employees -->
+          <Unrelated currCode="EUR">0</Unrelated>
+          <Related currCode="EUR">0</Related>
+          <Total currCode="EUR">0</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">-500000</ProfitOrLoss>
+        <TaxPaid currCode="EUR">0</TaxPaid>
+        <TaxAccrued currCode="EUR">0</TaxAccrued>
+        <Capital currCode="EUR">25000000</Capital>
+        <Earnings currCode="EUR">-2000000</Earnings>
+        <!-- WARNING: 150 employees but no revenue -->
+        <NbEmployees>150</NbEmployees>
+        <Assets currCode="EUR">100000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <TIN issuedBy="LU">12345678901</TIN>
+            <Name>Data Quality Test Holdings S.à r.l.</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>Test Address, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>LU</IncorpCountryCode>
+          <BizActivities>CBC501</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+    
+    <!-- Jurisdiction with inconsistent TaxPaid vs TaxAccrued -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR002</DocRefId>
+      </DocSpec>
+      <ResCountryCode>DE</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">50000000</Unrelated>
+          <Related currCode="EUR">5000000</Related>
+          <Total currCode="EUR">55000000</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">8000000</ProfitOrLoss>
+        <!-- WARNING: TaxPaid is 5x TaxAccrued - very unusual -->
+        <TaxPaid currCode="EUR">10000000</TaxPaid>
+        <TaxAccrued currCode="EUR">2000000</TaxAccrued>
+        <Capital currCode="EUR">20000000</Capital>
+        <Earnings currCode="EUR">15000000</Earnings>
+        <NbEmployees>200</NbEmployees>
+        <Assets currCode="EUR">80000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>DE</ResCountryCode>
+            <TIN issuedBy="DE">123456789</TIN>
+            <Name>Test GmbH</Name>
+            <Address>
+              <CountryCode>DE</CountryCode>
+              <AddressFree>Test Address, Germany</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>DE</IncorpCountryCode>
+          <BizActivities>CBC503</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+    
+    <!-- Jurisdiction with MIXED CURRENCIES -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR003</DocRefId>
+      </DocSpec>
+      <ResCountryCode>US</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <!-- ERROR: Using USD when other jurisdictions use EUR -->
+          <Unrelated currCode="USD">60000000</Unrelated>
+          <Related currCode="USD">6000000</Related>
+          <Total currCode="USD">66000000</Total>
+        </Revenues>
+        <!-- ERROR: Mixed currency - EUR here, USD above -->
+        <ProfitOrLoss currCode="EUR">9000000</ProfitOrLoss>
+        <TaxPaid currCode="USD">1800000</TaxPaid>
+        <TaxAccrued currCode="EUR">2000000</TaxAccrued>
+        <Capital currCode="USD">30000000</Capital>
+        <Earnings currCode="EUR">18000000</Earnings>
+        <NbEmployees>300</NbEmployees>
+        <Assets currCode="USD">120000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>US</ResCountryCode>
+            <TIN issuedBy="US">12-3456789</TIN>
+            <Name>Test USA Inc.</Name>
+            <Address>
+              <CountryCode>US</CountryCode>
+              <AddressFree>Test Address, USA</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>US</IncorpCountryCode>
+          <BizActivities>CBC503</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+    
+    <!-- Jurisdiction with negative profit but positive tax -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR004</DocRefId>
+      </DocSpec>
+      <ResCountryCode>FR</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">40000000</Unrelated>
+          <Related currCode="EUR">4000000</Related>
+          <Total currCode="EUR">44000000</Total>
+        </Revenues>
+        <!-- WARNING: Negative profit -->
+        <ProfitOrLoss currCode="EUR">-5000000</ProfitOrLoss>
+        <!-- WARNING: Positive tax paid despite loss -->
+        <TaxPaid currCode="EUR">500000</TaxPaid>
+        <TaxAccrued currCode="EUR">0</TaxAccrued>
+        <Capital currCode="EUR">15000000</Capital>
+        <Earnings currCode="EUR">-3000000</Earnings>
+        <NbEmployees>180</NbEmployees>
+        <Assets currCode="EUR">70000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>FR</ResCountryCode>
+            <TIN issuedBy="FR">FR12345678901</TIN>
+            <Name>Test France SAS</Name>
+            <Address>
+              <CountryCode>FR</CountryCode>
+              <AddressFree>Test Address, France</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>FR</IncorpCountryCode>
+          <BizActivities>CBC503</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+    
+    <!-- Jurisdiction with Capital = 0 but significant Assets -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR005</DocRefId>
+      </DocSpec>
+      <ResCountryCode>NL</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">25000000</Unrelated>
+          <Related currCode="EUR">2500000</Related>
+          <Total currCode="EUR">27500000</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">4000000</ProfitOrLoss>
+        <TaxPaid currCode="EUR">1000000</TaxPaid>
+        <TaxAccrued currCode="EUR">1050000</TaxAccrued>
+        <!-- WARNING: Zero capital with substantial assets -->
+        <Capital currCode="EUR">0</Capital>
+        <Earnings currCode="EUR">8000000</Earnings>
+        <NbEmployees>100</NbEmployees>
+        <!-- WARNING: 50M assets but 0 capital -->
+        <Assets currCode="EUR">50000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>NL</ResCountryCode>
+            <TIN issuedBy="NL">NL123456789B01</TIN>
+            <Name>Test Netherlands B.V.</Name>
+            <Address>
+              <CountryCode>NL</CountryCode>
+              <AddressFree>Test Address, Netherlands</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>NL</IncorpCountryCode>
+          <BizActivities>CBC506</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+    
+    <!-- Additional Info mentioning dividends but not excluded from revenues -->
+    <AdditionalInfo>
+      <OtherInfo language="EN">
+        The group received EUR 10,000,000 in dividends during the fiscal year.
+        <!-- WARNING: Dividends should be excluded from revenues per May 2024 OECD guidance -->
+        These dividends have been included in the Related Revenues figures.
+      </OtherInfo>
+    </AdditionalInfo>
+    
+  </CbcBody>
+</CBC_OECD>
+

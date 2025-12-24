@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  INVALID MESSAGE SPEC TEST FILE
+  
+  This file contains the following validation errors:
+  1. MSG-001: MessageRefId format is invalid (doesn't start with country code)
+  2. MSG-004: MessageRefId exceeds 100 characters
+  3. Missing ReportingPeriod element
+  4. Invalid MessageTypeIndic value
+-->
+<CBC_OECD xmlns="urn:oecd:ties:cbc:v2" version="2.0">
+  
+  <MessageSpec>
+    <SendingEntityIN>LU12345678901</SendingEntityIN>
+    <TransmittingCountry>LU</TransmittingCountry>
+    <ReceivingCountry>LU</ReceivingCountry>
+    <MessageType>CBC</MessageType>
+    <Language>EN</Language>
+    
+    <!-- ERROR: MessageRefId doesn't start with country code and is too long -->
+    <MessageRefId>INVALID_REF_ID_THAT_DOES_NOT_FOLLOW_THE_CORRECT_FORMAT_AND_IS_ALSO_EXCEEDING_THE_MAXIMUM_LENGTH_OF_ONE_HUNDRED_CHARACTERS_ALLOWED</MessageRefId>
+    
+    <!-- ERROR: CBC403 is not a valid MessageTypeIndic -->
+    <MessageTypeIndic>CBC403</MessageTypeIndic>
+    
+    <!-- ERROR: ReportingPeriod is missing -->
+    <!-- <ReportingPeriod>2023-12-31</ReportingPeriod> -->
+    
+    <Timestamp>2024-01-15T14:30:00</Timestamp>
+  </MessageSpec>
+  
+  <CbcBody>
+    <ReportingEntity>
+      <Entity>
+        <ResCountryCode>LU</ResCountryCode>
+        <TIN issuedBy="LU">12345678901</TIN>
+        <Name>Test Company S.à r.l.</Name>
+        <Address>
+          <CountryCode>LU</CountryCode>
+          <AddressFree>Test Address, Luxembourg</AddressFree>
+        </Address>
+      </Entity>
+      <NameMNEGroup>Test Group</NameMNEGroup>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001RE001</DocRefId>
+      </DocSpec>
+    </ReportingEntity>
+    
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR001</DocRefId>
+      </DocSpec>
+      <ResCountryCode>LU</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">10000000</Unrelated>
+          <Related currCode="EUR">1000000</Related>
+          <Total currCode="EUR">11000000</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">1500000</ProfitOrLoss>
+        <TaxPaid currCode="EUR">375000</TaxPaid>
+        <TaxAccrued currCode="EUR">380000</TaxAccrued>
+        <Capital currCode="EUR">5000000</Capital>
+        <Earnings currCode="EUR">3000000</Earnings>
+        <NbEmployees>25</NbEmployees>
+        <Assets currCode="EUR">20000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <TIN issuedBy="LU">12345678901</TIN>
+            <Name>Test Company S.à r.l.</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>Test Address, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>LU</IncorpCountryCode>
+          <BizActivities>CBC501</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+  </CbcBody>
+</CBC_OECD>
+

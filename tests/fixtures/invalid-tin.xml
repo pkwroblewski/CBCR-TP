@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  INVALID TIN TEST FILE
+  
+  This file contains the following validation errors:
+  1. TIN-001: Missing issuedBy attribute
+  2. TIN-002: Invalid Luxembourg TIN format (not 11-13 digits)
+  3. TIN-003: TIN with repeated single character
+  4. TIN-004: NOTIN without reason
+  5. LU-TIN-001: Luxembourg TIN doesn't match Matricule format
+-->
+<CBC_OECD xmlns="urn:oecd:ties:cbc:v2" version="2.0">
+  
+  <MessageSpec>
+    <SendingEntityIN>LU12345678901</SendingEntityIN>
+    <TransmittingCountry>LU</TransmittingCountry>
+    <ReceivingCountry>LU</ReceivingCountry>
+    <MessageType>CBC</MessageType>
+    <Language>EN</Language>
+    <MessageRefId>LU2023CBC0001234567890</MessageRefId>
+    <MessageTypeIndic>CBC401</MessageTypeIndic>
+    <ReportingPeriod>2023-12-31</ReportingPeriod>
+    <Timestamp>2024-01-15T14:30:00</Timestamp>
+  </MessageSpec>
+  
+  <CbcBody>
+    <ReportingEntity>
+      <Entity>
+        <ResCountryCode>LU</ResCountryCode>
+        <!-- ERROR: Missing issuedBy attribute -->
+        <TIN>12345678901</TIN>
+        <Name>Test Company S.à r.l.</Name>
+        <Address>
+          <CountryCode>LU</CountryCode>
+          <AddressFree>Test Address, Luxembourg</AddressFree>
+        </Address>
+      </Entity>
+      <NameMNEGroup>Test Group</NameMNEGroup>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001RE001</DocRefId>
+      </DocSpec>
+    </ReportingEntity>
+    
+    <!-- Luxembourg jurisdiction with invalid TINs -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR001</DocRefId>
+      </DocSpec>
+      <ResCountryCode>LU</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">50000000</Unrelated>
+          <Related currCode="EUR">5000000</Related>
+          <Total currCode="EUR">55000000</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">8000000</ProfitOrLoss>
+        <TaxPaid currCode="EUR">2000000</TaxPaid>
+        <TaxAccrued currCode="EUR">2100000</TaxAccrued>
+        <Capital currCode="EUR">25000000</Capital>
+        <Earnings currCode="EUR">15000000</Earnings>
+        <NbEmployees>150</NbEmployees>
+        <Assets currCode="EUR">100000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <!-- Entity with invalid Luxembourg TIN format (too short) -->
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <!-- ERROR: Only 8 digits, should be 11-13 -->
+            <TIN issuedBy="LU">12345678</TIN>
+            <Name>Short TIN Company S.à r.l.</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>Test Address 1, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>LU</IncorpCountryCode>
+          <BizActivities>CBC501</BizActivities>
+        </ConstEntity>
+        
+        <!-- Entity with repeated single character TIN -->
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <!-- ERROR: Repeated single character -->
+            <TIN issuedBy="LU">11111111111</TIN>
+            <Name>Repeated TIN Company S.A.</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>Test Address 2, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>LU</IncorpCountryCode>
+          <BizActivities>CBC502</BizActivities>
+        </ConstEntity>
+        
+        <!-- Entity with NOTIN but no reason -->
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <!-- ERROR: NOTIN should have a reason in OtherEntityInfo -->
+            <TIN issuedBy="LU">NOTIN</TIN>
+            <Name>No TIN Company S.à r.l.</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>Test Address 3, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>LU</IncorpCountryCode>
+          <BizActivities>CBC505</BizActivities>
+          <!-- Missing OtherEntityInfo explaining why no TIN -->
+        </ConstEntity>
+        
+        <!-- Entity with non-numeric Luxembourg TIN -->
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <!-- ERROR: Contains letters, should be numeric only -->
+            <TIN issuedBy="LU">LU12345678901</TIN>
+            <Name>Alpha TIN Company S.A.</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>Test Address 4, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>LU</IncorpCountryCode>
+          <BizActivities>CBC503</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+    
+    <!-- Germany jurisdiction with TIN issues -->
+    <CbcReports>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>LU2023DOC001JUR002</DocRefId>
+      </DocSpec>
+      <ResCountryCode>DE</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">30000000</Unrelated>
+          <Related currCode="EUR">3000000</Related>
+          <Total currCode="EUR">33000000</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">4500000</ProfitOrLoss>
+        <TaxPaid currCode="EUR">1350000</TaxPaid>
+        <TaxAccrued currCode="EUR">1400000</TaxAccrued>
+        <Capital currCode="EUR">15000000</Capital>
+        <Earnings currCode="EUR">9000000</Earnings>
+        <NbEmployees>80</NbEmployees>
+        <Assets currCode="EUR">60000000</Assets>
+      </Summary>
+      <ConstEntities>
+        <!-- Entity with wrong issuedBy -->
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>DE</ResCountryCode>
+            <!-- ERROR: issuedBy doesn't match ResCountryCode -->
+            <TIN issuedBy="FR">123456789</TIN>
+            <Name>Wrong Issuer GmbH</Name>
+            <Address>
+              <CountryCode>DE</CountryCode>
+              <AddressFree>Test Address, Germany</AddressFree>
+            </Address>
+          </Entity>
+          <IncorpCountryCode>DE</IncorpCountryCode>
+          <BizActivities>CBC503</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+  </CbcBody>
+</CBC_OECD>
+
