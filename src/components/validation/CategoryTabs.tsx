@@ -62,7 +62,7 @@ const CATEGORIES: CategoryConfig[] = [
   },
   {
     id: 'schema',
-    value: 'schema_validation' as ValidationCategory,
+    value: 'schema_compliance' as ValidationCategory,
     label: 'Schema',
     icon: <FileCheck className="h-4 w-4" />,
   },

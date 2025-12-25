@@ -64,6 +64,7 @@ export function FileUploadZone({
     statusMessage,
     error,
     isDragActive,
+    reportId,
     handleDrop,
     handleDragEnter,
     handleDragLeave,
@@ -311,7 +312,8 @@ export function FileUploadZone({
                 Validate Another File
               </Button>
               <Button
-                onClick={() => onValidationComplete?.('')}
+                onClick={() => reportId && onValidationComplete?.(reportId)}
+                disabled={!reportId}
                 className="rounded-xl bg-gradient-to-r from-accent to-cyan-500 hover:from-accent/90 hover:to-cyan-500/90 shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 hover:-translate-y-0.5"
               >
                 View Results

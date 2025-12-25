@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
   CategoryTabs,
   QuickActions,
 } from '@/components/validation';
+import { ExecutiveSummary } from '@/components/reports/ExecutiveSummary';
 import { ValidationCategory, ValidationSeverity } from '@/types/validation';
 import type { ValidationResult, ValidationReport, ValidationSummary as ValidationSummaryType } from '@/types/validation';
 import {
@@ -22,6 +23,8 @@ import {
   Building2,
   Hash,
   Clock,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 /**
@@ -35,40 +38,157 @@ export default function ReportDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const [report, setReport] = useState<ValidationReport | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
-  // TODO: Fetch from Supabase
-  const report: ValidationReport = {
-    id,
-    filename: 'CbCR_2023_Q4_Final.xml',
-    uploadedAt: '2024-01-15T14:30:00Z',
-    completedAt: '2024-01-15T14:30:45Z',
-    status: 'completed',
-    isValid: true,
-    fiscalYear: '2023',
-    upeJurisdiction: 'LU',
-    upeName: 'Acme Holdings S.à r.l.',
-    messageRefId: 'LU2024CBC0001234567890',
-    jurisdictionCount: 12,
-    entityCount: 45,
-    durationMs: 4523,
-    summary: {
-      critical: 0,
-      errors: 2,
-      warnings: 8,
-      info: 15,
-      passed: 142,
-      total: 167,
-    },
-    byCategory: {
-      [ValidationCategory.XML_WELLFORMEDNESS]: 0,
-      [ValidationCategory.SCHEMA_COMPLIANCE]: 1,
-      [ValidationCategory.BUSINESS_RULES]: 3,
-      [ValidationCategory.COUNTRY_RULES]: 2,
-      [ValidationCategory.DATA_QUALITY]: 12,
-      [ValidationCategory.PILLAR2_READINESS]: 7,
-    },
-    results: generateMockResults(),
-  };
+  /**
+   * Download PDF report
+   */
+  const handleDownloadPdf = useCallback(async () => {
+    if (!report) return;
+
+    try {
+      setIsDownloadingPdf(true);
+
+      // For cached reports, we need to generate PDF client-side or use API
+      // Try API first
+      const response = await fetch(`/api/reports/${id}/pdf`);
+
+      if (!response.ok) {
+        // If API fails (e.g., report not in DB), generate simple text report
+        const textContent = generateTextReport(report);
+        const blob = new Blob([textContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cbcr-validation-${report.filename.replace('.xml', '')}-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // Download PDF
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cbcr-validation-${report.filename.replace('.xml', '')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+      alert('Failed to download report. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [id, report]);
+
+  useEffect(() => {
+    async function fetchReport() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // First check sessionStorage for recently validated report
+        const cachedReport = sessionStorage.getItem(`validation-report-${id}`);
+        if (cachedReport) {
+          const parsed = JSON.parse(cachedReport);
+          setReport(parsed);
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch from API
+        const response = await fetch(`/api/validate/${id}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'Failed to load report');
+        }
+
+        if (!data.success) {
+          throw new Error(data.error?.message || 'Failed to load report');
+        }
+
+        // Transform API response to report format
+        const apiReport: ValidationReport = {
+          id: data.data.id,
+          filename: data.data.filename,
+          uploadedAt: data.data.uploadedAt,
+          completedAt: data.data.completedAt,
+          status: data.data.status || 'completed',
+          isValid: data.data.isValid,
+          fiscalYear: data.data.fiscalYear,
+          upeJurisdiction: data.data.upeJurisdiction,
+          upeName: data.data.upeName,
+          messageRefId: data.data.messageRefId,
+          jurisdictionCount: data.data.jurisdictionCount,
+          entityCount: data.data.entityCount,
+          durationMs: data.data.durationMs,
+          summary: data.data.summary || {
+            critical: 0,
+            errors: 0,
+            warnings: 0,
+            info: 0,
+            passed: 0,
+            total: 0,
+          },
+          byCategory: data.data.byCategory || {},
+          results: data.data.results || [],
+        };
+
+        setReport(apiReport);
+      } catch (err) {
+        console.error('Failed to fetch report:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load report');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchReport();
+  }, [id]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-accent" />
+        <p className="text-muted-foreground">Loading validation report...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !report) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+          <AlertCircle className="h-8 w-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-semibold text-foreground">Failed to Load Report</h2>
+        <p className="text-muted-foreground">{error || 'Report not found'}</p>
+        <div className="flex gap-3">
+          <Button variant="outline" asChild>
+            <Link href="/reports">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Reports
+            </Link>
+          </Button>
+          <Button onClick={() => window.location.reload()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Format dates
   const formatDate = (dateString?: string) => {
@@ -225,11 +345,18 @@ export default function ReportDetailPage({
         </div>
       </div>
 
+      {/* Executive Summary with PDF Download */}
+      <ExecutiveSummary
+        report={report}
+        onDownloadPdf={handleDownloadPdf}
+        isDownloading={isDownloadingPdf}
+      />
+
       {/* Results by category */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg text-[#1a365d]">
-            Validation Results
+            Detailed Validation Results
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -240,77 +367,118 @@ export default function ReportDetailPage({
   );
 }
 
-/**
- * Generate mock validation results for demo
- */
-function generateMockResults(): ValidationResult[] {
-  const results: ValidationResult[] = [
-    {
-      ruleId: 'MSG-001',
-      category: ValidationCategory.BUSINESS_RULES,
-      severity: ValidationSeverity.WARNING,
-      message: 'MessageRefId format could be improved for better tracking',
-      xpath: '/CBC_OECD/MessageSpec/MessageRefId',
-      suggestion: 'Consider using format: JURISDICTION + YEAR + SEQUENCE',
-      reference: 'OECD CbC XML Schema User Guide, Section 3.2',
-    },
-    {
-      ruleId: 'DOC-003',
-      category: ValidationCategory.SCHEMA_COMPLIANCE,
-      severity: ValidationSeverity.ERROR,
-      message: 'CorrDocRefId provided but DocTypeIndic is not OECD2 or OECD3',
-      xpath: '/CBC_OECD/CbcBody/CbcReports[3]/DocSpec',
-      suggestion: 'Remove CorrDocRefId or change DocTypeIndic to OECD2/OECD3',
-      details: { docTypeIndic: 'OECD1', corrDocRefId: 'LU2023DOC001' },
-    },
-    {
-      ruleId: 'TIN-002',
-      category: ValidationCategory.COUNTRY_RULES,
-      severity: ValidationSeverity.ERROR,
-      message: 'TIN format does not match Luxembourg Matricule national pattern',
-      xpath: '/CBC_OECD/CbcBody/CbcReports[5]/ConstEntities/ConstEntity[2]/TIN',
-      suggestion: 'Luxembourg TIN should be 11-13 numeric digits',
-      details: { providedTin: 'ABC123', expectedFormat: '11-13 digits' },
-    },
-    {
-      ruleId: 'XFV-002',
-      category: ValidationCategory.DATA_QUALITY,
-      severity: ValidationSeverity.WARNING,
-      message: 'Revenue is zero but Employees count is greater than zero',
-      xpath: '/CBC_OECD/CbcBody/CbcReports[7]/Summary',
-      suggestion: 'Verify if this entity had any revenue-generating activities',
-      details: { revenue: 0, employees: 25 },
-    },
-    {
-      ruleId: 'P2-SH-001',
-      category: ValidationCategory.PILLAR2_READINESS,
-      severity: ValidationSeverity.INFO,
-      message: 'Jurisdiction qualifies for De Minimis Safe Harbour exclusion',
-      xpath: '/CBC_OECD/CbcBody/CbcReports[2]',
-      details: { jurisdiction: 'MT', revenue: 5000000, profit: 500000 },
-    },
-    {
-      ruleId: 'SUM-003',
-      category: ValidationCategory.DATA_QUALITY,
-      severity: ValidationSeverity.WARNING,
-      message: 'Large difference between TaxPaid and TaxAccrued',
-      xpath: '/CBC_OECD/CbcBody/CbcReports[4]/Summary',
-      suggestion: 'Verify timing differences or refunds are correctly reflected',
-      details: { taxPaid: 1500000, taxAccrued: 3200000, difference: '113%' },
-    },
-  ];
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
 
-  // Add more mock results for different categories
-  for (let i = 0; i < 10; i++) {
-    results.push({
-      ruleId: `QUA-${String(i + 1).padStart(3, '0')}`,
-      category: ValidationCategory.DATA_QUALITY,
-      severity: i % 4 === 0 ? ValidationSeverity.WARNING : ValidationSeverity.INFO,
-      message: `Data quality check ${i + 1}: Cross-reference validation passed with notes`,
-      xpath: `/CBC_OECD/CbcBody/CbcReports[${i + 1}]/Summary`,
-    });
+/**
+ * Generate a text report for fallback when PDF API is unavailable
+ */
+function generateTextReport(report: ValidationReport): string {
+  const lines: string[] = [];
+  const divider = '='.repeat(80);
+  const subDivider = '-'.repeat(80);
+
+  // Header
+  lines.push(divider);
+  lines.push('PW-(CbCR) ANALYZER - VALIDATION REPORT');
+  lines.push(divider);
+  lines.push('');
+
+  // File Info
+  lines.push('FILE INFORMATION');
+  lines.push(subDivider);
+  lines.push(`File Name: ${report.filename}`);
+  lines.push(`Fiscal Year: ${report.fiscalYear || 'N/A'}`);
+  lines.push(`UPE Jurisdiction: ${report.upeJurisdiction || 'N/A'}`);
+  lines.push(`UPE Name: ${report.upeName || 'N/A'}`);
+  lines.push(`Generated: ${new Date().toLocaleString()}`);
+  lines.push('');
+
+  // Overall Status
+  lines.push('VALIDATION STATUS');
+  lines.push(subDivider);
+  lines.push(`Status: ${report.isValid ? 'PASSED' : 'FAILED'}`);
+  lines.push('');
+
+  // Summary
+  lines.push('SUMMARY');
+  lines.push(subDivider);
+  lines.push(`Critical Issues: ${report.summary.critical}`);
+  lines.push(`Errors: ${report.summary.errors}`);
+  lines.push(`Warnings: ${report.summary.warnings}`);
+  lines.push(`Informational: ${report.summary.info}`);
+  lines.push(`Total Checks: ${report.summary.total}`);
+  lines.push(`Passed: ${report.summary.passed}`);
+  const score = report.summary.total > 0
+    ? Math.round((report.summary.passed / report.summary.total) * 100)
+    : 100;
+  lines.push(`Compliance Score: ${score}%`);
+  lines.push('');
+
+  // Overall Assessment
+  lines.push('ASSESSMENT');
+  lines.push(subDivider);
+  if (report.isValid && report.summary.critical === 0 && report.summary.errors === 0) {
+    lines.push('Your CbC report has passed validation. The report appears to be compliant');
+    lines.push('with OECD CbC-Schema v2.0 requirements and is ready for submission.');
+  } else if (report.summary.critical > 0) {
+    lines.push('Your CbC report has CRITICAL issues that will cause rejection by tax');
+    lines.push('authorities. These must be corrected before submission.');
+  } else {
+    lines.push('Your CbC report has issues that should be reviewed before submission.');
+  }
+  lines.push('');
+
+  // Detailed Results
+  if (report.results.length > 0) {
+    lines.push('DETAILED FINDINGS');
+    lines.push(subDivider);
+
+    // Group by severity
+    const bySeverity: Record<string, ValidationResult[]> = {};
+    for (const result of report.results) {
+      if (!bySeverity[result.severity]) {
+        bySeverity[result.severity] = [];
+      }
+      bySeverity[result.severity].push(result);
+    }
+
+    const severityOrder = ['critical', 'error', 'warning', 'info'];
+    for (const severity of severityOrder) {
+      const results = bySeverity[severity];
+      if (results && results.length > 0) {
+        lines.push('');
+        lines.push(`[${severity.toUpperCase()}] - ${results.length} issue(s)`);
+        lines.push('');
+        for (const result of results) {
+          lines.push(`  Rule: ${result.ruleId}`);
+          lines.push(`  Message: ${result.message}`);
+          if (result.xpath) {
+            lines.push(`  Location: ${result.xpath}`);
+          }
+          if (result.suggestion) {
+            lines.push(`  Suggestion: ${result.suggestion}`);
+          }
+          lines.push('');
+        }
+      }
+    }
   }
 
-  return results;
+  // Disclaimer
+  lines.push(divider);
+  lines.push('DISCLAIMER');
+  lines.push(subDivider);
+  lines.push('This validation report is provided for informational purposes only and');
+  lines.push('does not constitute legal or tax advice. Always consult with qualified');
+  lines.push('tax professionals before filing Country-by-Country Reports.');
+  lines.push('');
+  lines.push(divider);
+  lines.push('Generated by PW-(CbCR) Analyzer');
+  lines.push(divider);
+
+  return lines.join('\n');
 }
+
 

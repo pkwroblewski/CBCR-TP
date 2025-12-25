@@ -24,6 +24,7 @@ import { extractReportMetadata } from '@/lib/parsers/xml-transformer';
 import { ValidationCategory, ValidationSeverity } from '@/types/validation';
 import type { ValidationResult, ValidationSummary, ValidationReport } from '@/types/validation';
 import { AuditLogService, extractRequestContext } from '@/lib/services/audit-service';
+import { createFullyConfiguredEngine } from '@/lib/validators';
 
 // =============================================================================
 // CONSTANTS
@@ -210,42 +211,32 @@ export async function POST(request: NextRequest) {
         const cbcReport = parseResult.data;
         metadata = extractReportMetadata(cbcReport);
 
-        // Step 4: Run validation rules
-        // TODO: Integrate full validation engine
-        // For now, add some basic checks
-        const messageSpec = cbcReport.message?.messageSpec;
+        // Step 3: Run full validation engine with all validators
+        try {
+          // Create validation engine with country-specific validators if provided
+          // Default to Luxembourg (LU) for now
+          const engine = createFullyConfiguredEngine('LU', true);
 
-        // Check MessageRefId
-        if (messageSpec?.messageRefId) {
-          const msgRefId = messageSpec.messageRefId;
-          if (msgRefId.length > 100) {
-            results.push({
-              ruleId: 'MSG-004',
-              category: ValidationCategory.BUSINESS_RULES,
-              severity: ValidationSeverity.ERROR,
-              message: 'MessageRefId exceeds maximum length of 100 characters',
-              xpath: '/CBC_OECD/MessageSpec/MessageRefId',
-              details: { length: msgRefId.length },
-            });
-          }
-        } else {
-          results.push({
-            ruleId: 'MSG-001',
-            category: ValidationCategory.BUSINESS_RULES,
-            severity: ValidationSeverity.CRITICAL,
-            message: 'MessageRefId is required',
-            xpath: '/CBC_OECD/MessageSpec/MessageRefId',
+          // Run all validators
+          const engineReport = await engine.validate(cbcReport, {
+            country: 'LU',
+            checkPillar2: true,
+            strictMode: false,
           });
-        }
 
-        // Check reporting period
-        if (!messageSpec?.reportingPeriod) {
+          // Add engine results to our results array
+          if (engineReport.results) {
+            results.push(...engineReport.results);
+          }
+        } catch (engineError) {
+          console.error('Validation engine error:', engineError);
+          // Add a warning if engine fails but continue with basic results
           results.push({
-            ruleId: 'MSG-005',
-            category: ValidationCategory.BUSINESS_RULES,
-            severity: ValidationSeverity.ERROR,
-            message: 'ReportingPeriod is required',
-            xpath: '/CBC_OECD/MessageSpec/ReportingPeriod',
+            ruleId: 'ENGINE-001',
+            category: ValidationCategory.XML_WELLFORMEDNESS,
+            severity: ValidationSeverity.WARNING,
+            message: 'Full validation engine encountered an error. Basic validation completed.',
+            details: { error: engineError instanceof Error ? engineError.message : 'Unknown error' },
           });
         }
       }

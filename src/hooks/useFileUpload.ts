@@ -71,6 +71,8 @@ export interface UploadState {
   error: FileValidationError | null;
   /** Whether drag is active over drop zone */
   isDragActive: boolean;
+  /** Report ID after successful validation */
+  reportId: string | null;
 }
 
 /**
@@ -144,6 +146,7 @@ export function useFileUpload(): UseFileUploadReturn {
     statusMessage: '',
     error: null,
     isDragActive: false,
+    reportId: null,
   });
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -419,6 +422,7 @@ export function useFileUpload(): UseFileUploadReturn {
       statusMessage: '',
       error: null,
       isDragActive: false,
+      reportId: null,
     });
     if (inputRef.current) {
       inputRef.current.value = '';
@@ -505,14 +509,50 @@ export function useFileUpload(): UseFileUploadReturn {
       const result = await response.json();
       updateState({ progress: 90 });
 
-      // Stage 4: Complete
+      // Check if the response was successful
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Validation failed');
+      }
+
+      const reportId = result.data?.reportId;
+
+      // Cache the validation results in sessionStorage for immediate display
+      if (reportId && result.data) {
+        try {
+          const reportData = {
+            id: reportId,
+            filename: state.file?.name || result.data.metadata?.filename,
+            uploadedAt: new Date().toISOString(),
+            completedAt: new Date().toISOString(),
+            status: 'completed',
+            isValid: result.data.isValid,
+            fiscalYear: result.data.metadata?.fiscalYear,
+            upeJurisdiction: result.data.metadata?.upeJurisdiction,
+            upeName: result.data.metadata?.upeName,
+            messageRefId: result.data.metadata?.messageRefId,
+            jurisdictionCount: result.data.metadata?.jurisdictionCount,
+            entityCount: result.data.metadata?.entityCount,
+            durationMs: result.data.durationMs,
+            summary: result.data.summary,
+            byCategory: result.data.byCategory,
+            results: result.data.results,
+          };
+          sessionStorage.setItem(`validation-report-${reportId}`, JSON.stringify(reportData));
+        } catch (e) {
+          console.warn('Failed to cache validation results:', e);
+        }
+      }
+
+      // Stage 4: Complete - store reportId in state
       updateState({
         stage: 'complete',
         progress: 100,
         statusMessage: 'Validation complete!',
+        reportId: reportId || null,
       });
 
-      return result.reportId;
+      // Return the reportId from the nested data object
+      return reportId || null;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       updateState({
