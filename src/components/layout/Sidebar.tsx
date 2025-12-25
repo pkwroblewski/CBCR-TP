@@ -27,6 +27,8 @@ import {
   Shield,
   BookOpen,
   Sparkles,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 
 // =============================================================================
@@ -150,6 +152,30 @@ export function Sidebar({
     >
       {/* Navigation sections */}
       <div className="flex-1 overflow-y-auto py-6 px-3">
+        {/* Visit Homepage Link - at the top */}
+        <Link
+          href="/"
+          className={cn(
+            'group relative flex items-center gap-3 mb-4 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300',
+            'bg-gradient-to-r from-orange-500/10 to-amber-500/5 border border-orange-200/40',
+            'hover:from-orange-500/20 hover:to-amber-500/15 hover:border-orange-300/60 hover:shadow-md hover:shadow-orange-500/10',
+            collapsed && 'justify-center px-2'
+          )}
+          title={collapsed ? 'Visit Homepage' : undefined}
+        >
+          <span className="relative flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+            <Globe className="h-5 w-5 text-orange-500 group-hover:text-orange-600" />
+          </span>
+          {!collapsed && (
+            <>
+              <span className="flex-1 truncate text-orange-600 group-hover:text-orange-700">Visit Homepage</span>
+              <ExternalLink className="h-3.5 w-3.5 text-orange-400 group-hover:text-orange-500 opacity-70 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </>
+          )}
+        </Link>
+
+        <Separator className="my-4 bg-border/30" />
+
         {/* Main nav */}
         <div className="mb-2">
           {!collapsed && (
@@ -206,30 +232,6 @@ export function Sidebar({
           </Button>
         )}
       </div>
-
-      {/* Pro upgrade card (expanded only) */}
-      {!collapsed && (
-        <div className="px-3 pb-4">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-4 text-primary-foreground shadow-lg">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-wider">Pro Features</span>
-              </div>
-              <p className="text-xs text-primary-foreground/80 mb-3">
-                Unlock advanced validation rules and priority support.
-              </p>
-              <Button
-                size="sm"
-                className="w-full bg-white text-primary hover:bg-white/90 shadow-md font-semibold text-xs h-8"
-              >
-                Upgrade Now
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   FileCheck2,
   FolderOpen,
@@ -9,67 +8,22 @@ import {
   Calendar,
   ArrowRight,
   Upload,
-  CheckCircle2,
-  XCircle,
   Lightbulb,
-  Clock,
-  Sparkles,
   Shield,
   BarChart3,
   Target,
+  FileX,
 } from 'lucide-react';
 
 /**
  * Dashboard Page
  *
  * Premium dashboard view with stats, recent validations, and quick actions.
+ * Shows placeholders until actual data is available.
  */
 export default function DashboardPage() {
-  // TODO: Fetch from Supabase
-  const stats = {
-    totalReports: 24,
-    thisMonth: 8,
-    passRate: 87.5,
-  };
-
-  // TODO: Fetch from Supabase
-  const recentValidations = [
-    {
-      id: '1',
-      filename: 'CbCR_2023_Q4_Final.xml',
-      date: '2024-01-15',
-      status: 'passed',
-      score: 95,
-    },
-    {
-      id: '2',
-      filename: 'CbCR_2023_Amendment.xml',
-      date: '2024-01-12',
-      status: 'failed',
-      score: 62,
-    },
-    {
-      id: '3',
-      filename: 'CbCR_2022_Correction.xml',
-      date: '2024-01-10',
-      status: 'passed',
-      score: 100,
-    },
-    {
-      id: '4',
-      filename: 'CbCR_Test_File.xml',
-      date: '2024-01-08',
-      status: 'passed',
-      score: 88,
-    },
-    {
-      id: '5',
-      filename: 'CbCR_2023_Q3.xml',
-      date: '2024-01-05',
-      status: 'failed',
-      score: 45,
-    },
-  ];
+  // TODO: Fetch actual data from Supabase
+  const hasValidations = false; // Will be true when user has validation history
 
   const tips = [
     {
@@ -122,26 +76,26 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Quick stats */}
+      {/* Quick stats - with placeholders */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {[
           {
             label: 'Total Reports',
-            value: stats.totalReports,
+            value: hasValidations ? '0' : '—',
             icon: FolderOpen,
             gradient: 'from-accent to-cyan-500',
             delay: '0ms',
           },
           {
             label: 'This Month',
-            value: stats.thisMonth,
+            value: hasValidations ? '0' : '—',
             icon: Calendar,
             gradient: 'from-emerald-500 to-emerald-400',
             delay: '100ms',
           },
           {
             label: 'Pass Rate',
-            value: `${stats.passRate}%`,
+            value: hasValidations ? '0%' : '—',
             icon: TrendingUp,
             gradient: 'from-amber-500 to-amber-400',
             delay: '200ms',
@@ -168,7 +122,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent validations */}
+      {/* Recent validations - empty state */}
       <Card className="glass border-white/20 shadow-xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <CardHeader className="flex flex-row items-center justify-between border-b border-white/10 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
           <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
@@ -183,50 +137,26 @@ export default function DashboardPage() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y divide-border/30">
-            {recentValidations.map((validation, index) => (
-              <Link
-                key={validation.id}
-                href={`/reports/${validation.id}`}
-                className="flex items-center justify-between p-4 hover:bg-accent/5 transition-all duration-200 group"
-                style={{ animationDelay: `${400 + index * 50}ms` }}
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-xl ${
-                    validation.status === 'passed'
-                      ? 'bg-gradient-to-br from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/20'
-                      : 'bg-gradient-to-br from-red-500 to-red-400 shadow-lg shadow-red-500/20'
-                  } group-hover:scale-110 transition-transform duration-300`}>
-                    {validation.status === 'passed' ? (
-                      <CheckCircle2 className="h-5 w-5 text-white" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-white" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate group-hover:text-accent transition-colors">
-                      {validation.filename}
-                    </p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                      <Clock className="h-3 w-3" />
-                      {validation.date}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Badge
-                    className={`font-bold text-xs px-3 py-1 rounded-full shadow-sm ${
-                      validation.status === 'passed'
-                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                        : 'bg-red-100 text-red-700 hover:bg-red-100'
-                    }`}
-                  >
-                    {validation.score}%
-                  </Badge>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all" />
-                </div>
+          {/* Empty state placeholder */}
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-stone-200 to-stone-300 mb-5">
+              <FileX className="h-8 w-8 text-stone-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              No validations yet
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm mb-6">
+              Upload your first CbCR XML file to see validation results and history appear here.
+            </p>
+            <Button
+              asChild
+              className="bg-gradient-to-r from-accent to-cyan-500 hover:from-accent/90 hover:to-cyan-500/90 text-white shadow-lg shadow-accent/20 rounded-xl"
+            >
+              <Link href="/validate">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Your First Report
               </Link>
-            ))}
+            </Button>
           </div>
         </CardContent>
       </Card>

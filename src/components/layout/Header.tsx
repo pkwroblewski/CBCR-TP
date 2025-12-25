@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -33,6 +34,8 @@ import {
   HelpCircle,
   Bell,
   Sparkles,
+  Home,
+  ExternalLink,
 } from 'lucide-react';
 
 // =============================================================================
@@ -82,7 +85,12 @@ export function Header({
   user,
 }: HeaderProps) {
   const pathname = usePathname();
+  const { signOut, isLoading: isSigningOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const userInitials = user?.initials || user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
@@ -118,21 +126,35 @@ export function Header({
           )}
         </Button>
 
-        {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-3 mr-8 group">
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 transition-all duration-300 group-hover:scale-105">
-            PW
-            <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full border-2 border-white animate-pulse" />
-          </div>
-          <div className="hidden sm:flex flex-col">
-            <span className="font-bold text-primary tracking-tight">
-              PW-(CbCR) Analyzer
+        {/* Logo & Home Link */}
+        <div className="flex items-center gap-2 mr-8">
+          <Link href="/dashboard" className="flex items-center gap-3 group">
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 transition-all duration-300 group-hover:scale-105">
+              PW
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full border-2 border-white animate-pulse" />
+            </div>
+            <div className="hidden sm:flex flex-col">
+              <span className="font-bold text-primary tracking-tight">
+                PW-(CbCR) Analyzer
+              </span>
+              <span className="text-[10px] text-muted-foreground -mt-0.5 tracking-wide">
+                Transfer Pricing Suite
+              </span>
+            </div>
+          </Link>
+
+          {/* Back to Landing Page */}
+          <Link
+            href="/"
+            className="group/home relative flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-200/50 hover:border-orange-400/70 hover:from-orange-500/20 hover:to-amber-500/20 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-orange-500/20"
+            title="Back to Homepage"
+          >
+            <Home className="h-4 w-4 text-orange-600 group-hover/home:text-orange-700 transition-colors" />
+            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-primary text-white text-[10px] font-medium rounded-md opacity-0 group-hover/home:opacity-100 transition-opacity whitespace-nowrap shadow-lg pointer-events-none">
+              Visit Homepage
             </span>
-            <span className="text-[10px] text-muted-foreground -mt-0.5 tracking-wide">
-              Transfer Pricing Suite
-            </span>
-          </div>
-        </Link>
+          </Link>
+        </div>
 
         {/* Desktop navigation */}
         <nav className="hidden md:flex items-center gap-1 flex-1" aria-label="Main navigation">
@@ -230,9 +252,21 @@ export function Header({
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/50" />
-              <DropdownMenuItem className="text-red-600 cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-50 transition-colors">
+              <DropdownMenuItem asChild>
+                <Link href="/" className="cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-orange-50 transition-colors group">
+                  <Home className="h-4 w-4 text-orange-500 group-hover:text-orange-600" />
+                  <span className="text-orange-600">Visit Homepage</span>
+                  <ExternalLink className="h-3 w-3 ml-auto text-orange-400" />
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border/50" />
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="text-red-600 cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-50 transition-colors"
+              >
                 <LogOut className="h-4 w-4" />
-                <span>Log out</span>
+                <span>{isSigningOut ? 'Signing out...' : 'Log out'}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -264,6 +298,31 @@ export function Header({
               </Link>
             );
           })}
+
+          {/* Mobile Home Link */}
+          <div className="pt-2 mt-2 border-t border-border/30">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 bg-gradient-to-r from-orange-500/10 to-amber-500/5 border border-orange-200/40 text-orange-600 hover:from-orange-500/20 hover:to-amber-500/15"
+            >
+              <Home className="h-4 w-4" />
+              <span className="flex-1">Visit Homepage</span>
+              <ExternalLink className="h-3.5 w-3.5 text-orange-400" />
+            </Link>
+          </div>
+
+          {/* Mobile Logout */}
+          <div className="pt-2 mt-2 border-t border-border/30">
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-red-600 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>{isSigningOut ? 'Signing out...' : 'Log out'}</span>
+            </button>
+          </div>
         </nav>
       )}
     </header>
