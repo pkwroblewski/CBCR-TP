@@ -25,11 +25,32 @@ function getAllowedOrigins(): string[] {
 
   // Default allowed origins
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  return [
+
+  // Include common Vercel deployment URLs
+  const vercelUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : null;
+  const vercelProjectUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : null;
+
+  const origins = [
     appUrl,
     'http://localhost:3000',
     'http://localhost:3001',
+    // Include Vercel production URL
+    'https://cbcr-tp.vercel.app',
   ];
+
+  // Add dynamic Vercel URLs if available
+  if (vercelUrl && !origins.includes(vercelUrl)) {
+    origins.push(vercelUrl);
+  }
+  if (vercelProjectUrl && !origins.includes(vercelProjectUrl)) {
+    origins.push(vercelProjectUrl);
+  }
+
+  return origins;
 }
 
 /**

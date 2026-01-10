@@ -98,7 +98,7 @@ const SEVERITY_CONFIG: Record<string, SeverityConfig> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   xml_wellformedness: 'XML Structure',
-  schema_validation: 'Schema Compliance',
+  schema_compliance: 'Schema Compliance',
   business_rules: 'Business Rules',
   country_rules: 'Country Rules',
   data_quality: 'Data Quality',
@@ -187,7 +187,14 @@ export function ValidationSummary({
         {/* Severity counts */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {Object.entries(SEVERITY_CONFIG).map(([key, config]) => {
-            const count = key === 'error' ? summary.errors : summary[key as keyof ValidationSummaryType] as number;
+            // Map severity keys to summary property names
+            const countMap: Record<string, number> = {
+              critical: summary.critical,
+              error: summary.errors,
+              warning: summary.warnings,
+              info: summary.info,
+            };
+            const count = countMap[key] ?? 0;
             return (
               <div
                 key={key}

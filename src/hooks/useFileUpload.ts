@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { postWithCsrf } from '@/lib/utils/csrf';
 
 // =============================================================================
 // CONSTANTS
@@ -487,16 +488,10 @@ export function useFileUpload(): UseFileUploadReturn {
       // Read file content
       const content = await state.file.text();
 
-      // Make API call to validate
-      const response = await fetch('/api/validate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: state.file.name,
-          content,
-        }),
+      // Make API call to validate (with CSRF protection)
+      const response = await postWithCsrf('/api/validate', {
+        filename: state.file.name,
+        content,
       });
 
       updateState({ progress: 80 });

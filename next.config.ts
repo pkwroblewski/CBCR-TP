@@ -58,6 +58,14 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
 
   /**
+   * Turbopack configuration
+   * Explicitly set the root to prevent lockfile detection issues
+   */
+  turbopack: {
+    root: __dirname,
+  },
+
+  /**
    * Apply security headers to all routes
    */
   async headers() {

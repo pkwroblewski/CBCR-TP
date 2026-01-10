@@ -40,4 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# vercel (deduplicated)
 .vercel
+
+# IDE and tool configs
+.claude/
+.cursorrules
+.playwright-mcp/
