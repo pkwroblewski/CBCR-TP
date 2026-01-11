@@ -56,13 +56,14 @@ const MAIN_NAV: NavItem[] = [
 ];
 
 const SECONDARY_NAV: NavItem[] = [
+  { label: 'How It Works', href: '/how-it-works', icon: <HelpCircle className="h-5 w-5" /> },
   { label: 'Validation Rules', href: '/resources/validation-rules', icon: <FileCheck2 className="h-5 w-5" /> },
   { label: 'Resources', href: '/resources', icon: <BookOpen className="h-5 w-5" /> },
   { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5" /> },
 ];
 
 const BOTTOM_NAV: NavItem[] = [
-  { label: 'Help', href: '/resources/glossary', icon: <HelpCircle className="h-5 w-5" /> },
+  { label: 'Glossary', href: '/resources/glossary', icon: <BookOpen className="h-5 w-5" /> },
 ];
 
 // =============================================================================
