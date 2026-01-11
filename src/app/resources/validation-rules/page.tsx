@@ -50,8 +50,8 @@ export default function ValidationRulesPage() {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        {/* Stats - Severity breakdown (adds up to Total) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
           <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-gradient">{stats.total}</div>
             <div className="text-sm text-slate-500">Total Rules</div>
@@ -66,14 +66,27 @@ export default function ValidationRulesPage() {
             <div className="text-2xl font-bold text-orange-400">
               {stats.bySeverity.find((s) => s.severity === 'error')?.count || 0}
             </div>
-            <div className="text-sm text-slate-500">Errors</div>
+            <div className="text-sm text-slate-500">Error</div>
+          </div>
+          <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-amber-400">
+              {stats.bySeverity.find((s) => s.severity === 'warning')?.count || 0}
+            </div>
+            <div className="text-sm text-slate-500">Warning</div>
           </div>
           <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-blue-400">
-              {stats.withOecdCode}
+              {stats.bySeverity.find((s) => s.severity === 'info')?.count || 0}
             </div>
-            <div className="text-sm text-slate-500">OECD Mapped</div>
+            <div className="text-sm text-slate-500">Info</div>
           </div>
+        </div>
+        
+        {/* Additional stat - OECD Mapped (separate dimension) */}
+        <div className="mb-8 text-sm text-slate-400 text-center">
+          <span className="inline-flex items-center gap-2 bg-slate-900/50 border border-slate-800/50 rounded-lg px-4 py-2">
+            <span className="text-blue-400 font-semibold">{stats.withOecdCode}</span> rules mapped to OECD error codes
+          </span>
         </div>
 
         {/* Rules Table */}
