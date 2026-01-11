@@ -156,8 +156,8 @@ export default function HowItWorksPage() {
 
           {/* Validation Flow Diagram */}
           <div className="relative">
-            {/* Connection lines - hidden on mobile */}
-            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 -translate-y-1/2 z-0" />
+            {/* Connection lines - hidden on mobile, positioned at center of icons */}
+            <div className="hidden md:block absolute top-8 left-[12%] right-[12%] h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 z-0" />
             
             <div className="grid md:grid-cols-4 gap-6 relative z-10">
               {/* Step 1 */}
