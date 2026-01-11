@@ -41,6 +41,12 @@ interface ValidationResultsListProps {
   maxHeight?: string;
   /** Additional CSS classes */
   className?: string;
+  /** AI explanations keyed by finding ID (ruleId-index) */
+  aiExplanations?: Record<string, string>;
+  /** ID of finding currently generating AI explanation */
+  generatingFindingId?: string | null;
+  /** Callback when user requests AI explanation for a finding */
+  onRequestAiExplanation?: (findingId: string, finding: ValidationResult) => void;
 }
 
 type SortOption = 'severity' | 'category' | 'ruleId';
@@ -114,6 +120,9 @@ export function ValidationResultsList({
   results,
   maxHeight = '600px',
   className,
+  aiExplanations,
+  generatingFindingId,
+  onRequestAiExplanation,
 }: ValidationResultsListProps) {
   const [filters, setFilters] = useState<FilterState>({
     severity: null,
@@ -385,15 +394,27 @@ export function ValidationResultsList({
             )}
           </div>
         ) : (
-          filteredResults.map((result, index) => (
-            <div
-              key={`${result.ruleId}-${index}`}
-              className="animate-fade-in-up"
-              style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
-            >
-              <ValidationResultCard result={result} />
-            </div>
-          ))
+          filteredResults.map((result, index) => {
+            const findingId = `${result.ruleId}-${index}`;
+            return (
+              <div
+                key={findingId}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
+              >
+                <ValidationResultCard
+                  result={result}
+                  aiExplanation={aiExplanations?.[findingId]}
+                  isGeneratingAi={generatingFindingId === findingId}
+                  onRequestAiExplanation={
+                    onRequestAiExplanation
+                      ? () => onRequestAiExplanation(findingId, result)
+                      : undefined
+                  }
+                />
+              </div>
+            );
+          })
         )}
       </div>
     </div>

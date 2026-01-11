@@ -34,6 +34,12 @@ interface CategoryTabsProps {
   defaultTab?: string;
   /** Additional CSS classes */
   className?: string;
+  /** AI explanations keyed by finding ID (ruleId-index) */
+  aiExplanations?: Record<string, string>;
+  /** ID of finding currently generating AI explanation */
+  generatingFindingId?: string | null;
+  /** Callback when user requests AI explanation for a finding */
+  onRequestAiExplanation?: (findingId: string, finding: ValidationResult) => void;
 }
 
 interface CategoryConfig {
@@ -103,6 +109,9 @@ export function CategoryTabs({
   results,
   defaultTab = 'all',
   className,
+  aiExplanations,
+  generatingFindingId,
+  onRequestAiExplanation,
 }: CategoryTabsProps) {
   /**
    * Get results for a category
@@ -178,6 +187,9 @@ export function CategoryTabs({
           <ValidationResultsList
             results={getResultsForCategory(category.value)}
             maxHeight="calc(100vh - 400px)"
+            aiExplanations={aiExplanations}
+            generatingFindingId={generatingFindingId}
+            onRequestAiExplanation={onRequestAiExplanation}
           />
         </TabsContent>
       ))}

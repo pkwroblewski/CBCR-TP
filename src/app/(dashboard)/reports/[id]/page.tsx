@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useQuery } from 'convex/react';
+import { useQuery, useAction, useMutation } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   QuickActions,
 } from '@/components/validation';
 import { ExecutiveSummary } from '@/components/reports/ExecutiveSummary';
+import { AiInsightsPanel } from '@/components/ai';
 import { ValidationCategory, ValidationSeverity } from '@/types/validation';
 import type { ValidationResult, ValidationReport, ValidationSummary as ValidationSummaryType } from '@/types/validation';
 import {
@@ -28,6 +29,7 @@ import {
   Loader2,
   AlertCircle,
   Cloud,
+  Sparkles,
 } from 'lucide-react';
 
 /**
@@ -46,6 +48,20 @@ export default function ReportDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isConvexReport, setIsConvexReport] = useState(false);
+
+  // AI state management
+  const [aiExplanations, setAiExplanations] = useState<Record<string, string>>({});
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [generatingFindingId, setGeneratingFindingId] = useState<string | null>(null);
+
+  // Convex actions for AI
+  const generateExplanation = useAction(api.actions.generateAiExplanation.generateExplanation);
+  const generateBatchExplanations = useAction(api.actions.generateAiExplanation.generateBatchExplanations);
+  const generateExecutiveSummary = useAction(api.actions.generateSummary.generateExecutiveSummary);
+  const trackAiUsage = useMutation(api.aiUsage.trackUsage);
 
   // Try to fetch from Convex if this looks like a Convex ID
   const isConvexId = id && !id.startsWith('local-') && !id.includes('-');
@@ -99,6 +115,176 @@ export default function ReportDetailPage({
       setIsDownloadingPdf(false);
     }
   }, [id, report]);
+
+  /**
+   * Generate AI explanation for a single finding
+   */
+  const handleGenerateSingleExplanation = useCallback(async (findingId: string, finding: ValidationResult) => {
+    if (!report) return;
+
+    try {
+      setGeneratingFindingId(findingId);
+      setAiError(null);
+
+      const result = await generateExplanation({
+        finding: {
+          ruleCode: finding.ruleId,
+          title: finding.ruleId,
+          description: finding.message,
+          severity: finding.severity,
+          affectedField: finding.xpath,
+        },
+        context: {
+          reportingEntity: report.upeName,
+          jurisdiction: report.upeJurisdiction,
+        },
+      });
+
+      if (result.error) {
+        setAiError(result.error);
+      } else {
+        setAiExplanations(prev => ({
+          ...prev,
+          [findingId]: result.explanation,
+        }));
+
+        // Track usage
+        try {
+          await trackAiUsage({
+            userId: 'anonymous', // Will be replaced with actual user ID
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            operation: 'finding_explanation',
+          });
+        } catch (e) {
+          console.warn('Failed to track AI usage:', e);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate AI explanation:', err);
+      setAiError(err instanceof Error ? err.message : 'Failed to generate explanation');
+    } finally {
+      setGeneratingFindingId(null);
+    }
+  }, [report, generateExplanation, trackAiUsage]);
+
+  /**
+   * Generate AI explanations for all findings
+   */
+  const handleGenerateAllExplanations = useCallback(async () => {
+    if (!report || report.results.length === 0) return;
+
+    try {
+      setIsGeneratingAi(true);
+      setAiProgress(0);
+      setAiError(null);
+
+      // Prepare findings that don't have explanations yet
+      const findingsToExplain = report.results
+        .map((r, i) => ({
+          id: `${r.ruleId}-${i}`,
+          ruleCode: r.ruleId,
+          title: r.ruleId,
+          description: r.message,
+          severity: r.severity,
+          affectedField: r.xpath,
+        }))
+        .filter(f => !aiExplanations[f.id]);
+
+      if (findingsToExplain.length === 0) {
+        setIsGeneratingAi(false);
+        return;
+      }
+
+      const result = await generateBatchExplanations({
+        findings: findingsToExplain,
+        context: {
+          reportingEntity: report.upeName,
+          jurisdiction: report.upeJurisdiction,
+        },
+        maxConcurrent: 3,
+      });
+
+      // Update explanations
+      const newExplanations: Record<string, string> = { ...aiExplanations };
+      for (const exp of result.explanations) {
+        if (!exp.error) {
+          newExplanations[exp.id] = exp.explanation;
+        }
+      }
+      setAiExplanations(newExplanations);
+      setAiProgress(100);
+
+      // Track total usage
+      try {
+        await trackAiUsage({
+          userId: 'anonymous',
+          inputTokens: result.totalInputTokens,
+          outputTokens: result.totalOutputTokens,
+          operation: 'finding_explanation',
+        });
+      } catch (e) {
+        console.warn('Failed to track AI usage:', e);
+      }
+    } catch (err) {
+      console.error('Failed to generate AI explanations:', err);
+      setAiError(err instanceof Error ? err.message : 'Failed to generate explanations');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  }, [report, aiExplanations, generateBatchExplanations, trackAiUsage]);
+
+  /**
+   * Generate AI executive summary
+   */
+  const handleGenerateSummary = useCallback(async () => {
+    if (!report) return;
+
+    try {
+      setIsGeneratingAi(true);
+      setAiError(null);
+
+      const findings = report.results.map((r, i) => ({
+        severity: r.severity,
+        title: r.ruleId,
+        category: r.category,
+        aiExplanation: aiExplanations[`${r.ruleId}-${i}`],
+      }));
+
+      const result = await generateExecutiveSummary({
+        findings,
+        metadata: {
+          reportingEntity: report.upeName,
+          jurisdictionCount: report.jurisdictionCount,
+          fiscalYear: report.fiscalYear,
+          fileName: report.filename,
+        },
+      });
+
+      if (result.error) {
+        setAiError(result.error);
+      } else {
+        setAiSummary(result.summary);
+
+        // Track usage
+        try {
+          await trackAiUsage({
+            userId: 'anonymous',
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            operation: 'executive_summary',
+          });
+        } catch (e) {
+          console.warn('Failed to track AI usage:', e);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate AI summary:', err);
+      setAiError(err instanceof Error ? err.message : 'Failed to generate summary');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  }, [report, aiExplanations, generateExecutiveSummary, trackAiUsage]);
 
   useEffect(() => {
     async function fetchReport() {
@@ -245,14 +431,14 @@ export default function ReportDetailPage({
               Back to Reports
             </Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold text-[#1a365d] flex items-center gap-2">
-            <FileCheck2 className="h-7 w-7" />
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-100 flex items-center gap-2">
+            <FileCheck2 className="h-7 w-7 text-blue-400" />
             Validation Report
           </h1>
-          <p className="text-slate-600 mt-1 truncate max-w-xl flex items-center gap-2" title={report.filename}>
+          <p className="text-slate-400 mt-1 truncate max-w-xl flex items-center gap-2" title={report.filename}>
             {report.filename}
             {isConvexReport && (
-              <span className="flex items-center gap-1 text-xs text-blue-500">
+              <span className="flex items-center gap-1 text-xs text-blue-400">
                 <Cloud className="h-3 w-3" />
                 Saved
               </span>
@@ -271,46 +457,46 @@ export default function ReportDetailPage({
 
       {/* Metadata cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800">
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
               <Calendar className="h-4 w-4" />
               Fiscal Year
             </div>
-            <p className="text-lg font-semibold text-[#1a365d]">
+            <p className="text-lg font-semibold text-slate-100">
               {report.fiscalYear}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800">
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
               <Globe className="h-4 w-4" />
               UPE Jurisdiction
             </div>
-            <p className="text-lg font-semibold text-[#1a365d]">
+            <p className="text-lg font-semibold text-slate-100">
               {report.upeJurisdiction}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800">
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
               <Building2 className="h-4 w-4" />
               Entities
             </div>
-            <p className="text-lg font-semibold text-[#1a365d]">
+            <p className="text-lg font-semibold text-slate-100">
               {report.entityCount}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800">
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
               <Hash className="h-4 w-4" />
               Jurisdictions
             </div>
-            <p className="text-lg font-semibold text-[#1a365d]">
+            <p className="text-lg font-semibold text-slate-100">
               {report.jurisdictionCount}
             </p>
           </CardContent>
@@ -336,10 +522,22 @@ export default function ReportDetailPage({
           />
         </div>
         <div className="space-y-4">
+          {/* AI Insights Panel */}
+          <AiInsightsPanel
+            totalFindings={report.results.length}
+            findingsWithAi={Object.keys(aiExplanations).length}
+            isGenerating={isGeneratingAi}
+            progress={aiProgress}
+            estimatedCost={report.results.length * 0.002} // ~$0.002 per finding estimate
+            onGenerateAll={handleGenerateAllExplanations}
+            onGenerateSummary={handleGenerateSummary}
+            error={aiError || undefined}
+          />
+
           {/* Quick actions */}
-          <Card>
+          <Card className="bg-slate-900/50 border-slate-800">
             <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
+              <CardTitle className="text-lg text-slate-100">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
               <QuickActions
@@ -351,29 +549,29 @@ export default function ReportDetailPage({
           </Card>
 
           {/* Report info */}
-          <Card>
+          <Card className="bg-slate-900/50 border-slate-800">
             <CardHeader>
-              <CardTitle className="text-lg">Report Info</CardTitle>
+              <CardTitle className="text-lg text-slate-100">Report Info</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">MessageRefId</span>
-                <code className="text-xs bg-slate-100 px-2 py-1 rounded truncate max-w-[180px]" title={report.messageRefId}>
+                <span className="text-slate-400">MessageRefId</span>
+                <code className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded truncate max-w-[180px]" title={report.messageRefId}>
                   {report.messageRefId}
                 </code>
               </div>
-              <Separator />
+              <Separator className="bg-slate-700" />
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Uploaded</span>
-                <span className="text-slate-700">{formatDate(report.uploadedAt)}</span>
+                <span className="text-slate-400">Uploaded</span>
+                <span className="text-slate-300">{formatDate(report.uploadedAt)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Completed</span>
-                <span className="text-slate-700">{formatDate(report.completedAt)}</span>
+                <span className="text-slate-400">Completed</span>
+                <span className="text-slate-300">{formatDate(report.completedAt)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Duration</span>
-                <span className="text-slate-700">
+                <span className="text-slate-400">Duration</span>
+                <span className="text-slate-300">
                   {report.durationMs ? `${(report.durationMs / 1000).toFixed(2)}s` : '-'}
                 </span>
               </div>
@@ -389,15 +587,39 @@ export default function ReportDetailPage({
         isDownloading={isDownloadingPdf}
       />
 
+      {/* AI Executive Summary (if generated) */}
+      {aiSummary && (
+        <Card className="bg-gradient-to-br from-purple-500/10 via-slate-900/50 to-slate-900/50 border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-100 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-400" />
+              AI Executive Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{aiSummary}</p>
+            <p className="text-xs text-slate-500 mt-4 flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              Generated by Claude AI - Review before sharing
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Results by category */}
-      <Card>
+      <Card className="bg-slate-900/50 border-slate-800">
         <CardHeader>
-          <CardTitle className="text-lg text-[#1a365d]">
+          <CardTitle className="text-lg text-slate-100">
             Detailed Validation Results
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <CategoryTabs results={report.results} />
+          <CategoryTabs
+            results={report.results}
+            aiExplanations={aiExplanations}
+            generatingFindingId={generatingFindingId}
+            onRequestAiExplanation={handleGenerateSingleExplanation}
+          />
         </CardContent>
       </Card>
     </div>
