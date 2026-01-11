@@ -33,6 +33,12 @@ export default function ResourcesLayout({
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-6">
               <Link
+                href="/how-it-works"
+                className="text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors"
+              >
+                How It Works
+              </Link>
+              <Link
                 href="/resources"
                 className="text-sm font-medium text-slate-100 hover:text-blue-400 transition-colors"
               >

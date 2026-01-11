@@ -78,6 +78,18 @@ export default function LandingPage() {
             
             <SignedOut>
               <Link
+                href="/how-it-works"
+                className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors hidden sm:block"
+              >
+                How It Works
+              </Link>
+              <Link
+                href="/resources"
+                className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors hidden sm:block"
+              >
+                Resources
+              </Link>
+              <Link
                 href="/sign-in"
                 className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors"
               >
