@@ -10,6 +10,7 @@ import {
   Database,
   Shield,
   FileText,
+  HelpCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getResourcesHubStatistics } from '@/lib/resources-utils';
@@ -29,6 +30,15 @@ export const metadata = {
 
 // Resource section configuration
 const RESOURCE_SECTIONS = [
+  {
+    id: 'how-it-works',
+    title: 'How It Works',
+    description: 'Learn how CbCR Analyzer validates your reports. Understand our validation process, severity levels, and AI-powered insights.',
+    href: '/how-it-works',
+    icon: HelpCircle,
+    gradient: 'from-blue-500 to-indigo-600',
+    shadow: 'shadow-blue-500/20',
+  },
   {
     id: 'validation-rules',
     title: 'Validation Rules',
