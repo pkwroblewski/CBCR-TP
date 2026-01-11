@@ -58,7 +58,7 @@ export function Breadcrumb({ items, showHome = true, className }: BreadcrumbProp
           return (
             <li key={item.label} className="flex items-center gap-1">
               {!isFirst && (
-                <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                <ChevronRight className="h-4 w-4 text-slate-600" aria-hidden="true" />
               )}
               {item.href && !isLast ? (
                 <Link

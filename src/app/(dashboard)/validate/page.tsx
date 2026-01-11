@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+
+// Disable static generation for this page - it uses Convex hooks
+export const dynamic = 'force-dynamic';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,11 +66,11 @@ export default function ValidatePage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-[var(--brand-primary)] flex items-center gap-2">
-          <FileCheck2 className="h-7 w-7" aria-hidden="true" />
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-100 flex items-center gap-2">
+          <FileCheck2 className="h-7 w-7 text-blue-400" aria-hidden="true" />
           Validate CbC Report
         </h1>
-        <p className="text-slate-600 mt-1">
+        <p className="text-slate-400 mt-1">
           Upload your CbC XML file to validate against OECD standards and country-specific rules.
         </p>
       </div>
@@ -76,14 +79,14 @@ export default function ValidatePage() {
       <FileUploadZone onValidationComplete={handleValidationComplete} />
 
       {/* Validation options */}
-      <Card>
+      <Card className="bg-slate-900/50 border-slate-800/50">
         <CardHeader
-          className="cursor-pointer"
+          className="cursor-pointer hover:bg-slate-800/30 transition-colors rounded-t-lg"
           onClick={() => setShowOptions(!showOptions)}
         >
-          <CardTitle className="text-lg font-semibold text-[var(--brand-primary)] flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold text-slate-100 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" />
+              <Settings2 className="h-5 w-5 text-blue-400" />
               Validation Options
             </span>
             {showOptions ? (
@@ -100,8 +103,8 @@ export default function ValidatePage() {
 
             {/* Country selection */}
             <div>
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
-                <Globe className="h-4 w-4" />
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2 mb-2">
+                <Globe className="h-4 w-4 text-blue-400" />
                 Country-Specific Rules
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -113,8 +116,8 @@ export default function ValidatePage() {
                     onClick={() => setSelectedCountry(country.code)}
                     className={
                       selectedCountry === country.code
-                        ? 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]'
-                        : ''
+                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                        : 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
                     }
                   >
                     {country.code} - {country.name}
@@ -130,8 +133,8 @@ export default function ValidatePage() {
 
             {/* Fiscal year */}
             <div>
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
-                <Calendar className="h-4 w-4" />
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-blue-400" />
                 Fiscal Year
               </label>
               <div className="flex flex-wrap gap-2">
@@ -143,8 +146,8 @@ export default function ValidatePage() {
                     onClick={() => setFiscalYear(year)}
                     className={
                       fiscalYear === year
-                        ? 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]'
-                        : ''
+                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                        : 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
                     }
                   >
                     {year}
@@ -161,9 +164,9 @@ export default function ValidatePage() {
             {/* Pillar 2 option */}
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-slate-600 mt-0.5" />
+                <Shield className="h-5 w-5 text-blue-400 mt-0.5" />
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-slate-300">
                     Include Pillar 2 Analysis
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -177,8 +180,8 @@ export default function ValidatePage() {
                 onClick={() => setIncludePillar2(!includePillar2)}
                 className={
                   includePillar2
-                    ? 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]'
-                    : ''
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                    : 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
                 }
               >
                 {includePillar2 ? 'Enabled' : 'Disabled'}
@@ -189,35 +192,35 @@ export default function ValidatePage() {
       </Card>
 
       {/* Information panel */}
-      <Card className="bg-blue-50 border-blue-100">
+      <Card className="bg-blue-500/10 border-blue-500/20">
         <CardContent className="pt-6">
-          <h3 className="font-medium text-blue-900 mb-2">
+          <h3 className="font-medium text-blue-300 mb-3">
             What gets validated?
           </h3>
-          <ul className="text-sm text-blue-800 space-y-1.5">
+          <ul className="text-sm text-blue-200/80 space-y-2">
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               XML structure and well-formedness
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               OECD CbC-Schema v2.0 compliance
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               Business rules (MessageRefId, DocRefId, TIN format)
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               Country-specific requirements
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               Data quality and consistency checks
             </li>
             {includePillar2 && (
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                 Pillar 2 Safe Harbour eligibility
               </li>
             )}

@@ -1,292 +1,235 @@
 'use client';
 
 /**
- * Preferences Form Component
+ * Preferences Form
  *
- * Form for managing user preferences and settings.
+ * Form for managing user preferences stored in Convex.
  *
- * @module components/forms/PreferencesForm
+ * @component
  */
 
-import React, { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useEffect, useState } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import { 
-  Loader2, 
-  Settings, 
-  Globe, 
-  Calendar, 
-  Bell, 
-  Languages,
-  Save,
-  Check 
-} from 'lucide-react';
-import type { Preferences } from '@/hooks/useProfile';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Save, Sliders } from 'lucide-react';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
-const COUNTRIES = [
+const JURISDICTIONS = [
   { code: 'LU', name: 'Luxembourg' },
   { code: 'DE', name: 'Germany' },
   { code: 'FR', name: 'France' },
   { code: 'NL', name: 'Netherlands' },
   { code: 'BE', name: 'Belgium' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'US', name: 'United States' },
+  { code: 'AT', name: 'Austria' },
   { code: 'IE', name: 'Ireland' },
   { code: 'CH', name: 'Switzerland' },
-  { code: 'AT', name: 'Austria' },
-];
-
-const FISCAL_YEAR_FORMATS = [
-  { value: 'calendar', label: 'Calendar Year (Jan - Dec)' },
-  { value: 'fiscal_mar', label: 'Fiscal Year (Apr - Mar)' },
-  { value: 'fiscal_jun', label: 'Fiscal Year (Jul - Jun)' },
-  { value: 'fiscal_sep', label: 'Fiscal Year (Oct - Sep)' },
-];
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'US', name: 'United States' },
 ];
 
 // =============================================================================
-// PROPS
+// COMPONENT
 // =============================================================================
 
-interface PreferencesFormProps {
-  preferences: Preferences;
-  isLoading: boolean;
-  isUpdating: boolean;
-  onSubmit: (data: Partial<Preferences>) => Promise<{ success: boolean; error?: string }>;
-}
+export function PreferencesForm() {
+  const preferences = useQuery(api.userPreferences.get);
+  const updatePreferences = useMutation(api.userPreferences.save);
+  const { addToast } = useToast();
 
-// =============================================================================
-// INNER FORM COMPONENT (uses key for resetting)
-// =============================================================================
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    defaultJurisdiction: 'LU',
+    enablePillar2: false,
+    emailNotifications: false,
+    theme: 'dark' as 'dark' | 'light' | 'system',
+  });
 
-function PreferencesFormInner({ 
-  preferences, 
-  isUpdating, 
-  onSubmit 
-}: Omit<PreferencesFormProps, 'isLoading'>) {
-  const initialData = useMemo(() => ({ ...preferences }), [preferences]);
-  
-  const [formData, setFormData] = useState<Preferences>(initialData);
-  const [isDirty, setIsDirty] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  // ---------------------------------------------------------------------------
-  // HANDLERS
-  // ---------------------------------------------------------------------------
-
-  const handleChange = (field: keyof Preferences, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    setIsDirty(true);
-    setShowSuccess(false);
-  };
+  // Initialize form with existing preferences
+  useEffect(() => {
+    if (preferences) {
+      setFormData({
+        defaultJurisdiction: preferences.defaultJurisdiction || 'LU',
+        enablePillar2: preferences.enablePillar2 || false,
+        emailNotifications: preferences.emailNotifications || false,
+        theme: preferences.theme || 'dark',
+      });
+    }
+  }, [preferences]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    const response = await onSubmit(formData);
-
-    if (response.success) {
-      setIsDirty(false);
-      setShowSuccess(true);
-      toast.success('Preferences updated successfully');
-      setTimeout(() => setShowSuccess(false), 3000);
-    } else {
-      toast.error(response.error || 'Failed to update preferences');
+    try {
+      await updatePreferences(formData);
+      addToast('success', 'Your preferences have been updated successfully.');
+    } catch (error) {
+      addToast('error', error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------------------------------
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Preferences
-        </CardTitle>
-        <CardDescription>
-          Customize your validation and notification settings.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Default Country */}
-          <div className="space-y-2">
-            <label htmlFor="defaultCountry" className="text-sm font-medium flex items-center gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              Default Country for Validation
-            </label>
-            <select
-              id="defaultCountry"
-              value={formData.defaultCountry}
-              onChange={(e) => handleChange('defaultCountry', e.target.value)}
-              disabled={isUpdating}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {COUNTRIES.map((country) => (
-                <option key={country.code} value={country.code}>
-                  {country.name} ({country.code})
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground">
-              This will be pre-selected when you start a new validation.
-            </p>
-          </div>
-
-          {/* Fiscal Year Format */}
-          <div className="space-y-2">
-            <label htmlFor="fiscalYearFormat" className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              Default Fiscal Year Format
-            </label>
-            <select
-              id="fiscalYearFormat"
-              value={formData.defaultFiscalYearFormat}
-              onChange={(e) => handleChange('defaultFiscalYearFormat', e.target.value)}
-              disabled={isUpdating}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {FISCAL_YEAR_FORMATS.map((format) => (
-                <option key={format.value} value={format.value}>
-                  {format.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Separator />
-
-          {/* Email Notifications */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <label htmlFor="emailNotifications" className="text-sm font-medium flex items-center gap-2">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                Email Notifications
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Receive email updates about your validation reports.
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                id="emailNotifications"
-                type="checkbox"
-                checked={formData.emailNotifications}
-                onChange={(e) => handleChange('emailNotifications', e.target.checked)}
-                disabled={isUpdating}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
-
-          <Separator />
-
-          {/* Language */}
-          <div className="space-y-2">
-            <label htmlFor="language" className="text-sm font-medium flex items-center gap-2">
-              <Languages className="h-4 w-4 text-muted-foreground" />
-              Language
-              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Coming Soon</span>
-            </label>
-            <select
-              id="language"
-              value={formData.language}
-              onChange={(e) => handleChange('language', e.target.value)}
-              disabled={true}
-              className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground">
-              Additional languages will be available in a future update.
-            </p>
-          </div>
-
-          <Separator />
-
-          {/* Submit Button */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {isDirty ? (
-                <span className="text-amber-600">You have unsaved changes</span>
-              ) : showSuccess ? (
-                <span className="text-green-600 flex items-center gap-1">
-                  <Check className="h-4 w-4" />
-                  Preferences saved
-                </span>
-              ) : null}
-            </div>
-            <Button
-              type="submit"
-              disabled={isUpdating || !isDirty}
-              className="min-w-[140px]"
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Preferences
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-// =============================================================================
-// MAIN COMPONENT
-// =============================================================================
-
-export function PreferencesForm({ preferences, isLoading, isUpdating, onSubmit }: PreferencesFormProps) {
-  // ---------------------------------------------------------------------------
-  // LOADING STATE
-  // ---------------------------------------------------------------------------
-
-  if (isLoading) {
+  if (preferences === undefined) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <Card className="bg-slate-900 border-slate-800">
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
         </CardContent>
       </Card>
     );
   }
 
-  // Use a key based on preferences to reset form when they change externally
-  const preferencesKey = JSON.stringify(preferences);
-
   return (
-    <PreferencesFormInner
-      key={preferencesKey}
-      preferences={preferences}
-      isUpdating={isUpdating}
-      onSubmit={onSubmit}
-    />
+    <Card className="bg-slate-900 border-slate-800">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-slate-100">
+          <Sliders className="h-5 w-5" />
+          Validation Preferences
+        </CardTitle>
+        <CardDescription className="text-slate-400">
+          Configure default settings for CbCR validation
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Default Jurisdiction */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-200">
+              Default Jurisdiction
+            </label>
+            <Select
+              value={formData.defaultJurisdiction}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, defaultJurisdiction: value }))
+              }
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100">
+                <SelectValue placeholder="Select jurisdiction" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                {JURISDICTIONS.map((j) => (
+                  <SelectItem
+                    key={j.code}
+                    value={j.code}
+                    className="text-slate-100 focus:bg-slate-700"
+                  >
+                    {j.code} - {j.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-slate-500">
+              Country-specific validation rules will be applied based on this selection
+            </p>
+          </div>
+
+          {/* Pillar 2 Analysis */}
+          <div className="flex items-start space-x-3">
+            <Checkbox
+              id="enablePillar2"
+              checked={formData.enablePillar2}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, enablePillar2: checked === true }))
+              }
+              className="mt-1 border-slate-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+            />
+            <div className="space-y-1">
+              <label
+                htmlFor="enablePillar2"
+                className="text-sm font-medium text-slate-200 cursor-pointer"
+              >
+                Enable Pillar 2 Analysis
+              </label>
+              <p className="text-xs text-slate-500">
+                Include GloBE Safe Harbour eligibility checks in validation reports
+              </p>
+            </div>
+          </div>
+
+          {/* Email Notifications */}
+          <div className="flex items-start space-x-3">
+            <Checkbox
+              id="emailNotifications"
+              checked={formData.emailNotifications}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, emailNotifications: checked === true }))
+              }
+              className="mt-1 border-slate-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+            />
+            <div className="space-y-1">
+              <label
+                htmlFor="emailNotifications"
+                className="text-sm font-medium text-slate-200 cursor-pointer"
+              >
+                Email Notifications
+              </label>
+              <p className="text-xs text-slate-500">
+                Receive email alerts for validation report completion
+              </p>
+            </div>
+          </div>
+
+          {/* Theme */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-200">Theme</label>
+            <Select
+              value={formData.theme}
+              onValueChange={(value: 'dark' | 'light' | 'system') =>
+                setFormData((prev) => ({ ...prev, theme: value }))
+              }
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100">
+                <SelectValue placeholder="Select theme" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectItem value="dark" className="text-slate-100 focus:bg-slate-700">
+                  Dark
+                </SelectItem>
+                <SelectItem value="light" className="text-slate-100 focus:bg-slate-700">
+                  Light
+                </SelectItem>
+                <SelectItem value="system" className="text-slate-100 focus:bg-slate-700">
+                  System
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Preferences
+              </>
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

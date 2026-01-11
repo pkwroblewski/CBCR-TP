@@ -12,6 +12,7 @@ import { ValidationResult, ValidationCategory, ValidationSeverity } from '@/type
 import type { Summary, CbcReport, MonetaryAmount } from '@/types/cbcr';
 import { BaseValidator, ValidatorMetadata } from '../core/base-validator';
 import { ValidationContext } from '../core/validation-context';
+import { isValidCurrencyCode } from '@/constants/countries';
 
 // =============================================================================
 // CONSTANTS
@@ -270,6 +271,9 @@ export class SummaryValidator extends BaseValidator {
 
   /**
    * Validate monetary amounts for format and reasonableness
+   *
+   * Per OECD XSD Schema, MonAmnt_Type is xsd:integer (no decimals allowed)
+   * and currCode attribute is required on all monetary amounts.
    */
   private validateMonetaryAmounts(
     summary: Summary,
@@ -289,6 +293,53 @@ export class SummaryValidator extends BaseValidator {
     ];
 
     for (const { field, amount, allowNegative } of amountsToCheck) {
+      // XSD-001: Currency code is REQUIRED per XSD (currCode attribute)
+      if (!amount.currCode) {
+        results.push(
+          this.result('XSD-001')
+            .error()
+            .schemaCompliance()
+            .message(
+              `${jurisdiction} ${field}: Currency code (currCode) is required`
+            )
+            .xpath(`${basePath}/${field}/@currCode`)
+            .reference('CbcXML_v2.0.xsd - MonAmnt_Type requires currCode attribute')
+            .build()
+        );
+      } else if (!isValidCurrencyCode(amount.currCode)) {
+        // XSD-002: Currency code must be valid ISO 4217
+        results.push(
+          this.result('XSD-002')
+            .error()
+            .schemaCompliance()
+            .message(
+              `${jurisdiction} ${field}: Invalid currency code "${amount.currCode}". Must be ISO 4217`
+            )
+            .xpath(`${basePath}/${field}/@currCode`)
+            .values(amount.currCode, 'Valid ISO 4217 currency code')
+            .build()
+        );
+      }
+
+      // XSD-003: MonAmnt_Type is xsd:integer (no decimals allowed per XSD)
+      if (!Number.isInteger(amount.value)) {
+        results.push(
+          this.result('XSD-003')
+            .error()
+            .schemaCompliance()
+            .message(
+              `${jurisdiction} ${field}: Value must be an integer (no decimals). Found: ${amount.value}`
+            )
+            .xpath(`${basePath}/${field}`)
+            .details({
+              value: amount.value,
+              decimals: this.getDecimalPlaces(amount.value),
+            })
+            .reference('CbcXML_v2.0.xsd - MonAmnt_Type is xsd:integer')
+            .build()
+        );
+      }
+
       // Check for unreasonable values
       if (Math.abs(amount.value) > MAX_REASONABLE_AMOUNT) {
         results.push(
@@ -319,20 +370,6 @@ export class SummaryValidator extends BaseValidator {
           this.result('SUM-004')
             .error()
             .message(`${jurisdiction} ${field}: Value cannot be negative`)
-            .xpath(`${basePath}/${field}`)
-            .build()
-        );
-      }
-
-      // Check for excessive decimals (amounts should typically be whole numbers)
-      const decimals = this.getDecimalPlaces(amount.value);
-      if (decimals > 2) {
-        results.push(
-          this.result('SUM-004')
-            .info()
-            .message(
-              `${jurisdiction} ${field}: Value has ${decimals} decimal places - consider rounding`
-            )
             .xpath(`${basePath}/${field}`)
             .build()
         );

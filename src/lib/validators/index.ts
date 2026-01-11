@@ -160,6 +160,20 @@ export {
 } from './pillar2';
 
 // =============================================================================
+// XSD SCHEMA VALIDATORS
+// =============================================================================
+
+export {
+  XsdValidator,
+  getXsdValidator,
+  validateXsdSchema,
+  isXsdValidationAvailable,
+  type XsdError,
+  type XsdValidationResult,
+  type XsdValidationMode,
+} from './xsd';
+
+// =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
 

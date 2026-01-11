@@ -4,6 +4,7 @@
  * OECD Common Errors Page
  *
  * Reference guide to the 28 common CbCR errors identified by the OECD.
+ * Dark theme with blue accents.
  *
  * @module app/resources/oecd-errors/page
  */
@@ -54,7 +55,7 @@ export default function OecdErrorsPage() {
   }, [errors]);
 
   return (
-    <div className="py-8 sm:py-12">
+    <div className="min-h-screen bg-slate-950 py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <ResourcesBreadcrumb items={[{ label: 'OECD Common Errors' }]} />
@@ -62,19 +63,19 @@ export default function OecdErrorsPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-              <AlertTriangle className="h-6 w-6 text-orange-600" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg shadow-orange-500/20 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-100">
                 OECD Common Errors
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-slate-400">
                 {errors.length} error types identified by the OECD
               </p>
             </div>
           </div>
-          <p className="text-muted-foreground max-w-3xl">
+          <p className="text-slate-400 max-w-3xl">
             Reference guide to the common CbCR filing errors identified by the OECD.
             Each error includes severity classification, detailed description, correct
             treatment guidance, and examples to help avoid common pitfalls.
@@ -83,17 +84,17 @@ export default function OecdErrorsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-lg border border-l-4 border-l-red-500 p-4">
-            <div className="text-2xl font-bold text-red-600">{severityCounts.critical}</div>
-            <div className="text-sm text-muted-foreground">Critical Errors</div>
+          <div className="bg-slate-900/50 border border-slate-800/50 border-l-4 border-l-red-500 rounded-xl p-4">
+            <div className="text-2xl font-bold text-red-400">{severityCounts.critical}</div>
+            <div className="text-sm text-slate-500">Critical Errors</div>
           </div>
-          <div className="bg-white rounded-lg border border-l-4 border-l-orange-500 p-4">
-            <div className="text-2xl font-bold text-orange-600">{severityCounts.error}</div>
-            <div className="text-sm text-muted-foreground">Errors</div>
+          <div className="bg-slate-900/50 border border-slate-800/50 border-l-4 border-l-orange-500 rounded-xl p-4">
+            <div className="text-2xl font-bold text-orange-400">{severityCounts.error}</div>
+            <div className="text-sm text-slate-500">Errors</div>
           </div>
-          <div className="bg-white rounded-lg border border-l-4 border-l-amber-500 p-4">
-            <div className="text-2xl font-bold text-amber-600">{severityCounts.warning}</div>
-            <div className="text-sm text-muted-foreground">Warnings</div>
+          <div className="bg-slate-900/50 border border-slate-800/50 border-l-4 border-l-amber-500 rounded-xl p-4">
+            <div className="text-2xl font-bold text-amber-400">{severityCounts.warning}</div>
+            <div className="text-sm text-slate-500">Warnings</div>
           </div>
         </div>
 
@@ -104,13 +105,14 @@ export default function OecdErrorsPage() {
               placeholder="Search errors by ID, title, or description..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              className="bg-slate-900/50 border-slate-700 text-slate-100 placeholder:text-slate-500"
             />
           </div>
           <Select value={severityFilter} onValueChange={setSeverityFilter}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="w-full sm:w-48 bg-slate-900/50 border-slate-700 text-slate-100">
               <SelectValue placeholder="Severity" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-slate-700">
               <SelectItem value="all">All Severities</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
               <SelectItem value="error">Error</SelectItem>
@@ -120,7 +122,7 @@ export default function OecdErrorsPage() {
         </div>
 
         {/* Results count */}
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-slate-500 mb-6">
           Showing {filteredErrors.length} of {errors.length} errors
         </p>
 
@@ -132,7 +134,7 @@ export default function OecdErrorsPage() {
         </div>
 
         {filteredErrors.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
+          <div className="text-center py-12 text-slate-500">
             No errors found matching your criteria.
           </div>
         )}

@@ -40,15 +40,17 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-inline/eval for dev
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline'", // Tailwind uses inline styles
-      "img-src 'self' data: blob: https:",
+      "img-src 'self' data: blob: https: https://img.clerk.com",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      "connect-src 'self' https://*.clerk.accounts.dev https://*.convex.cloud wss://*.convex.cloud",
+      "frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
       "frame-ancestors 'none'",
-      "form-action 'self'",
+      "form-action 'self' https://*.clerk.accounts.dev",
       "base-uri 'self'",
       "object-src 'none'",
+      "worker-src 'self' blob:",
     ].join('; '),
   },
 ];
@@ -63,6 +65,29 @@ const nextConfig: NextConfig = {
    */
   turbopack: {
     root: __dirname,
+  },
+
+  /**
+   * Redirects from old auth routes to new Clerk routes
+   */
+  async redirects() {
+    return [
+      {
+        source: '/login',
+        destination: '/sign-in',
+        permanent: true,
+      },
+      {
+        source: '/register',
+        destination: '/sign-up',
+        permanent: true,
+      },
+      {
+        source: '/forgot-password',
+        destination: '/sign-in',
+        permanent: true,
+      },
+    ];
   },
 
   /**

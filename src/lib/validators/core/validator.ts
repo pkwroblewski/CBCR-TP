@@ -23,6 +23,7 @@ import {
 } from './validation-context';
 import { BaseValidator, ValidatorRegistry, validatorRegistry } from './base-validator';
 import { countBySeverity, countByCategory, sortBySeverity } from './result-builder';
+import { getXsdValidator, XsdValidationMode, XsdValidationResult } from '../xsd';
 
 // =============================================================================
 // TYPES
@@ -43,6 +44,12 @@ export interface ValidationEngineConfig {
   
   /** Maximum parallel validators */
   maxParallel?: number;
+  
+  /** Enable XSD schema validation (default: true) */
+  enableXsd?: boolean;
+  
+  /** XSD validation mode: 'strict' (critical errors) or 'lenient' (warnings) */
+  xsdMode?: XsdValidationMode;
 }
 
 /**
@@ -100,8 +107,106 @@ export class ValidationEngine {
     this.config = {
       parallel: false,
       maxParallel: 4,
+      enableXsd: true,
+      xsdMode: 'strict',
       ...config,
     };
+  }
+  
+  // ===========================================================================
+  // XSD SCHEMA VALIDATION (PHASE 0)
+  // ===========================================================================
+  
+  /**
+   * Validate raw XML content against XSD schema
+   *
+   * @param xmlContent - Raw XML string
+   * @param mode - Validation mode: 'strict' or 'lenient'
+   * @returns XSD validation result with errors converted to ValidationResults
+   */
+  async validateXsd(
+    xmlContent: string,
+    mode?: XsdValidationMode
+  ): Promise<{
+    valid: boolean;
+    results: ValidationResult[];
+    xsdResult: XsdValidationResult;
+  }> {
+    const xsdMode = mode ?? this.config.xsdMode ?? 'strict';
+    const validator = getXsdValidator();
+    const xsdResult = await validator.validate(xmlContent, xsdMode);
+    
+    // Convert XSD errors to ValidationResults
+    const results = validator.toValidationResults(xsdResult, xsdMode);
+    
+    return {
+      valid: xsdResult.valid,
+      results,
+      xsdResult,
+    };
+  }
+  
+  /**
+   * Validate with XSD schema validation as first phase
+   *
+   * This method accepts raw XML content, runs XSD validation first,
+   * then continues with business rule validation on the parsed report.
+   *
+   * @param xmlContent - Raw XML string
+   * @param parsedReport - Pre-parsed CbC report (from fast-xml-parser)
+   * @param options - Validation options
+   * @returns Comprehensive validation report including XSD errors
+   */
+  async validateWithXsd(
+    xmlContent: string,
+    parsedReport: ParsedCbcReport,
+    options?: Partial<ExtendedValidationOptions>
+  ): Promise<ValidationReport> {
+    const startTime = Date.now();
+    const xsdResults: ValidationResult[] = [];
+    
+    // Phase 0: XSD Schema Validation
+    if (this.config.enableXsd) {
+      this.reportProgress({
+        phase: 'parsing',
+        percentage: 0,
+        message: 'Validating XML schema...',
+        issuesFound: 0,
+      });
+      
+      const xsdValidation = await this.validateXsd(xmlContent);
+      xsdResults.push(...xsdValidation.results);
+      
+      // In strict mode, if XSD validation fails with critical errors, we might still continue
+      // but the errors are recorded. For truly fatal XML errors, the parser would fail earlier.
+    }
+    
+    // Continue with regular validation
+    const report = await this.validate(parsedReport, options);
+    
+    // Merge XSD results with other results
+    if (xsdResults.length > 0) {
+      report.results = [...xsdResults, ...report.results];
+      
+      // Recalculate summary with XSD errors
+      const severityCounts = countBySeverity(report.results);
+      report.summary = {
+        critical: severityCounts[ValidationSeverity.CRITICAL],
+        errors: severityCounts[ValidationSeverity.ERROR],
+        warnings: severityCounts[ValidationSeverity.WARNING],
+        info: severityCounts[ValidationSeverity.INFO],
+        passed: Math.max(0, report.summary.passed - xsdResults.length),
+        total: report.summary.total + xsdResults.length,
+      };
+      report.isValid = report.summary.critical === 0;
+      report.byCategory = countByCategory(report.results);
+    }
+    
+    // Update timing
+    report.durationMs = Date.now() - startTime;
+    report.completedAt = new Date().toISOString();
+    
+    return report;
   }
   
   // ===========================================================================

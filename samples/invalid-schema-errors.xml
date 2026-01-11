@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This file has intentional XSD schema violations for testing -->
+<CBC_OECD xmlns="urn:oecd:ties:cbc:v2" version="2.0">
+  <MessageSpec>
+    <!-- Missing required elements: SendingEntityIN, TransmittingCountry, ReceivingCountry, MessageType -->
+    <MessageRefId>LU2024-INVALID-001</MessageRefId>
+    <MessageTypeIndic>CBC401</MessageTypeIndic>
+    <ReportingPeriod>2024-12-31</ReportingPeriod>
+    <Timestamp>2024-03-15T10:00:00</Timestamp>
+  </MessageSpec>
+  <CbcBody>
+    <ReportingEntity>
+      <Entity>
+        <ResCountryCode>LU</ResCountryCode>
+        <Name>Test Company</Name>
+      </Entity>
+      <!-- Missing required: NameMNEGroup, DocSpec, ReportingRole -->
+    </ReportingEntity>
+    <CbcReports>
+      <!-- Missing required: DocSpec, ResCountryCode, Summary, ConstEntities -->
+    </CbcReports>
+  </CbcBody>
+</CBC_OECD>

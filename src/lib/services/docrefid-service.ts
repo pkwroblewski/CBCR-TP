@@ -1,340 +1,147 @@
 /**
  * DocRefId Service
  *
- * Provides global DocRefId uniqueness checking across all CbCR submissions.
- *
- * Per OECD CbCR requirements, DocRefIds must be globally unique across all
- * submissions from a jurisdiction for the lifetime of CbC reporting.
+ * Manages global DocRefId uniqueness by connecting to Convex database.
+ * Per OECD requirements, DocRefIds must be globally unique across all submissions.
  *
  * @module lib/services/docrefid-service
  */
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../convex/_generated/api";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-/**
- * Result of DocRefId existence check
- */
-export interface DocRefIdCheckResult {
-  /** Whether the DocRefId already exists */
-  exists: boolean;
-  /** Jurisdiction that first registered this DocRefId */
-  issuingJurisdiction?: string;
-  /** Reporting period when first registered */
-  reportingPeriod?: string;
-  /** Whether it has been superseded by a correction */
-  isSuperseded?: boolean;
-  /** When the DocRefId was first registered */
-  createdAt?: string;
-}
-
-/**
- * DocRefId registration data
- */
-export interface DocRefIdRegistration {
+export interface DocRefIdRecord {
   docRefId: string;
-  reportId?: string;
-  userId?: string;
-  messageRefId?: string;
   issuingJurisdiction: string;
-  reportingPeriod?: string;
-  docTypeIndic?: string;
-  xpath?: string;
+  reportingPeriod: string;
+  createdAt: string;
+  isSuperseded: boolean;
 }
 
-/**
- * Batch check result
- */
 export interface BatchCheckResult {
-  /** DocRefIds that already exist */
   duplicates: Array<{
     docRefId: string;
-    existingRecord: DocRefIdCheckResult;
+    existingRecord: DocRefIdRecord;
   }>;
-  /** DocRefIds that are unique */
   unique: string[];
-  /** Whether all DocRefIds are unique */
-  allUnique: boolean;
 }
 
 // =============================================================================
-// SERVICE CLASS
+// HTTP CLIENT SINGLETON
+// =============================================================================
+
+let httpClient: ConvexHttpClient | null = null;
+
+function getHttpClient(): ConvexHttpClient | null {
+  if (httpClient) return httpClient;
+
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!convexUrl || convexUrl === "https://placeholder.convex.cloud") {
+    console.warn("[DocRefIdService] Convex URL not configured, using stub mode");
+    return null;
+  }
+
+  try {
+    httpClient = new ConvexHttpClient(convexUrl);
+    return httpClient;
+  } catch (error) {
+    console.error("[DocRefIdService] Failed to create Convex client:", error);
+    return null;
+  }
+}
+
+// =============================================================================
+// SERVICE
 // =============================================================================
 
 /**
- * Service for managing global DocRefId uniqueness
+ * Service for checking DocRefId uniqueness against the Convex database
  */
 export class DocRefIdService {
   /**
-   * Check if a single DocRefId already exists
-   *
-   * @param docRefId - The DocRefId to check
-   * @returns Check result with existence and details
-   */
-  static async checkExists(docRefId: string): Promise<DocRefIdCheckResult> {
-    try {
-      const supabase = await createServerSupabaseClient();
-
-      const { data, error } = await supabase
-        .from('docrefid_registry')
-        .select('doc_ref_id, issuing_jurisdiction, reporting_period, is_superseded, created_at')
-        .eq('doc_ref_id', docRefId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error checking DocRefId:', error);
-        // In case of error, assume it doesn't exist to allow validation to continue
-        return { exists: false };
-      }
-
-      if (!data) {
-        return { exists: false };
-      }
-
-      return {
-        exists: true,
-        issuingJurisdiction: data.issuing_jurisdiction,
-        reportingPeriod: data.reporting_period ?? undefined,
-        isSuperseded: data.is_superseded,
-        createdAt: data.created_at,
-      };
-    } catch (err) {
-      console.error('Error in DocRefIdService.checkExists:', err);
-      return { exists: false };
-    }
-  }
-
-  /**
-   * Check multiple DocRefIds for uniqueness
-   *
-   * @param docRefIds - Array of DocRefIds to check
-   * @returns Batch check result with duplicates and unique IDs
+   * Check multiple DocRefIds for uniqueness against the global registry
    */
   static async batchCheck(docRefIds: string[]): Promise<BatchCheckResult> {
-    const duplicates: BatchCheckResult['duplicates'] = [];
-    const unique: string[] = [];
+    const client = getHttpClient();
 
-    try {
-      const supabase = await createServerSupabaseClient();
-
-      // Query all DocRefIds at once
-      const { data: existingRecords, error } = await supabase
-        .from('docrefid_registry')
-        .select('doc_ref_id, issuing_jurisdiction, reporting_period, is_superseded, created_at')
-        .in('doc_ref_id', docRefIds);
-
-      if (error) {
-        console.error('Error batch checking DocRefIds:', error);
-        // In case of error, assume all are unique
-        return {
-          duplicates: [],
-          unique: docRefIds,
-          allUnique: true,
-        };
-      }
-
-      // Build a map for quick lookup
-      const existingMap = new Map<string, DocRefIdCheckResult>();
-      for (const record of existingRecords || []) {
-        existingMap.set(record.doc_ref_id, {
-          exists: true,
-          issuingJurisdiction: record.issuing_jurisdiction,
-          reportingPeriod: record.reporting_period ?? undefined,
-          isSuperseded: record.is_superseded,
-          createdAt: record.created_at,
-        });
-      }
-
-      // Check each DocRefId
-      for (const docRefId of docRefIds) {
-        const existingRecord = existingMap.get(docRefId);
-        if (existingRecord) {
-          duplicates.push({ docRefId, existingRecord });
-        } else {
-          unique.push(docRefId);
-        }
-      }
-
-      return {
-        duplicates,
-        unique,
-        allUnique: duplicates.length === 0,
-      };
-    } catch (err) {
-      console.error('Error in DocRefIdService.batchCheck:', err);
+    if (!client) {
+      // Stub mode: return all as unique
+      console.log("[DocRefIdService] Stub mode - all DocRefIds treated as unique");
       return {
         duplicates: [],
         unique: docRefIds,
-        allUnique: true,
       };
     }
-  }
-
-  /**
-   * Register a new DocRefId in the global registry
-   *
-   * @param registration - Registration data
-   * @returns true if registered, false if already exists
-   */
-  static async register(registration: DocRefIdRegistration): Promise<boolean> {
-    try {
-      const supabase = await createServerSupabaseClient();
-
-      const { error } = await supabase
-        .from('docrefid_registry')
-        .insert({
-          doc_ref_id: registration.docRefId,
-          report_id: registration.reportId || null,
-          user_id: registration.userId || null,
-          message_ref_id: registration.messageRefId || null,
-          issuing_jurisdiction: registration.issuingJurisdiction,
-          reporting_period: registration.reportingPeriod || null,
-          doc_type_indic: registration.docTypeIndic || null,
-          xpath: registration.xpath || null,
-        });
-
-      if (error) {
-        // Check if it's a unique constraint violation (already exists)
-        if (error.code === '23505') {
-          return false; // Already exists
-        }
-        console.error('Error registering DocRefId:', error);
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      console.error('Error in DocRefIdService.register:', err);
-      return false;
-    }
-  }
-
-  /**
-   * Register multiple DocRefIds in batch
-   *
-   * @param registrations - Array of registration data
-   * @returns Number of successfully registered DocRefIds
-   */
-  static async batchRegister(
-    registrations: DocRefIdRegistration[]
-  ): Promise<{ registered: number; failed: string[] }> {
-    const failed: string[] = [];
-    let registered = 0;
 
     try {
-      const supabase = await createServerSupabaseClient();
+      const result = await client.query(api.docRefIdRegistry.publicCheckDocRefIds, {
+        docRefIds,
+      });
 
-      // Prepare batch insert data
-      const insertData = registrations.map((reg) => ({
-        doc_ref_id: reg.docRefId,
-        report_id: reg.reportId || null,
-        user_id: reg.userId || null,
-        message_ref_id: reg.messageRefId || null,
-        issuing_jurisdiction: reg.issuingJurisdiction,
-        reporting_period: reg.reportingPeriod || null,
-        doc_type_indic: reg.docTypeIndic || null,
-        xpath: reg.xpath || null,
-      }));
-
-      // Use upsert with on conflict do nothing
-      const { error } = await supabase
-        .from('docrefid_registry')
-        .upsert(insertData, {
-          onConflict: 'doc_ref_id',
-          ignoreDuplicates: true,
-        });
-
-      if (error) {
-        console.error('Error batch registering DocRefIds:', error);
-        // All failed
-        return {
-          registered: 0,
-          failed: registrations.map((r) => r.docRefId),
-        };
-      }
-
-      // All succeeded (duplicates were ignored)
-      registered = registrations.length;
-      return { registered, failed };
-    } catch (err) {
-      console.error('Error in DocRefIdService.batchRegister:', err);
+      return result as BatchCheckResult;
+    } catch (error) {
+      console.error("[DocRefIdService] Failed to check DocRefIds:", error);
+      // On error, return all as unique to not block validation
       return {
-        registered: 0,
-        failed: registrations.map((r) => r.docRefId),
+        duplicates: [],
+        unique: docRefIds,
       };
     }
   }
 
   /**
-   * Mark a DocRefId as superseded by a correction
-   *
-   * @param originalDocRefId - The original DocRefId being corrected
-   * @param correctingDocRefId - The DocRefId of the correction
-   * @returns true if updated, false if not found
+   * Check if a single DocRefId exists
    */
-  static async markSuperseded(
-    originalDocRefId: string,
-    correctingDocRefId: string
-  ): Promise<boolean> {
-    try {
-      const supabase = await createServerSupabaseClient();
-
-      const { data, error } = await supabase
-        .from('docrefid_registry')
-        .update({
-          is_superseded: true,
-          superseded_by: correctingDocRefId,
-        })
-        .eq('doc_ref_id', originalDocRefId)
-        .eq('is_superseded', false)
-        .select('id');
-
-      if (error) {
-        console.error('Error marking DocRefId as superseded:', error);
-        return false;
-      }
-
-      // Return true if at least one row was updated
-      return data !== null && data.length > 0;
-    } catch (err) {
-      console.error('Error in DocRefIdService.markSuperseded:', err);
-      return false;
+  static async checkSingle(docRefId: string): Promise<{ exists: boolean; record?: DocRefIdRecord }> {
+    const result = await this.batchCheck([docRefId]);
+    
+    if (result.duplicates.length > 0) {
+      return {
+        exists: true,
+        record: result.duplicates[0].existingRecord,
+      };
     }
-  }
-}
-
-// =============================================================================
-// CLIENT-SIDE UTILITIES
-// =============================================================================
-
-/**
- * Check DocRefId uniqueness via API (for client-side use)
- *
- * @param docRefId - The DocRefId to check
- * @returns Check result
- */
-export async function checkDocRefIdUniqueness(
-  docRefId: string
-): Promise<DocRefIdCheckResult> {
-  try {
-    const response = await fetch('/api/docrefid/check', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ docRefId }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to check DocRefId');
-    }
-
-    return await response.json();
-  } catch (err) {
-    console.error('Error checking DocRefId uniqueness:', err);
+    
     return { exists: false };
+  }
+
+  /**
+   * Register a new DocRefId after successful submission
+   * Note: This requires authentication - should be called via Convex mutation
+   */
+  static async register(
+    docRefId: string,
+    jurisdiction: string,
+    reportingPeriod: string
+  ): Promise<void> {
+    const client = getHttpClient();
+
+    if (!client) {
+      console.log(`[DocRefIdService] Stub mode - would register: ${docRefId}`);
+      return;
+    }
+
+    // Note: Registration requires auth, so it's typically done client-side
+    // or via a separate authenticated endpoint
+    console.log(`[DocRefIdService] Registration should be done via authenticated mutation: ${docRefId}`);
+  }
+
+  /**
+   * Mark a DocRefId as superseded (after correction/deletion)
+   * Note: This requires authentication - should be called via Convex mutation
+   */
+  static async markSuperseded(docRefId: string, supersededBy: string): Promise<void> {
+    const client = getHttpClient();
+
+    if (!client) {
+      console.log(`[DocRefIdService] Stub mode - would mark ${docRefId} as superseded by ${supersededBy}`);
+      return;
+    }
+
+    console.log(`[DocRefIdService] Supersede should be done via authenticated mutation: ${docRefId}`);
   }
 }

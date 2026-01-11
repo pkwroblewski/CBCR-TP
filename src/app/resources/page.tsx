@@ -18,9 +18,7 @@ import { getResourcesHubStatistics } from '@/lib/resources-utils';
  * Resources Hub Page
  *
  * Main landing page for the Knowledge Base / Resources section.
- * Displays overview statistics and links to all resource categories.
- *
- * @module app/resources/page
+ * Dark theme with blue accents.
  */
 
 export const metadata = {
@@ -37,8 +35,8 @@ const RESOURCE_SECTIONS = [
     description: 'Comprehensive library of 70+ validation rules with OECD error code mappings, XPath references, and remediation guidance.',
     href: '/resources/validation-rules',
     icon: FileCheck2,
-    color: 'text-violet-600',
-    bgColor: 'bg-violet-100 dark:bg-violet-900/30',
+    gradient: 'from-violet-500 to-violet-600',
+    shadow: 'shadow-violet-500/20',
   },
   {
     id: 'oecd-errors',
@@ -46,8 +44,8 @@ const RESOURCE_SECTIONS = [
     description: 'Reference guide to the 28 common errors identified by the OECD, including severity levels and correction procedures.',
     href: '/resources/oecd-errors',
     icon: AlertTriangle,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+    gradient: 'from-orange-500 to-orange-600',
+    shadow: 'shadow-orange-500/20',
   },
   {
     id: 'countries',
@@ -55,8 +53,8 @@ const RESOURCE_SECTIONS = [
     description: 'TIN validation patterns, filing deadlines, and CbCR participation status for 195 jurisdictions worldwide.',
     href: '/resources/countries',
     icon: Globe2,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+    gradient: 'from-emerald-500 to-emerald-600',
+    shadow: 'shadow-emerald-500/20',
   },
   {
     id: 'pillar2',
@@ -64,8 +62,8 @@ const RESOURCE_SECTIONS = [
     description: 'GloBE rules, safe harbours, IIR/UTPR mechanisms, and jurisdiction implementation status for global minimum tax.',
     href: '/resources/pillar2',
     icon: Scale,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+    gradient: 'from-blue-500 to-blue-600',
+    shadow: 'shadow-blue-500/20',
   },
   {
     id: 'glossary',
@@ -73,8 +71,8 @@ const RESOURCE_SECTIONS = [
     description: 'Definitions for 45+ CbCR and Pillar 2 terms, from "Action 13" to "UTPR", with related concepts and references.',
     href: '/resources/glossary',
     icon: BookOpen,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+    gradient: 'from-amber-500 to-amber-600',
+    shadow: 'shadow-amber-500/20',
   },
   {
     id: 'external',
@@ -82,8 +80,8 @@ const RESOURCE_SECTIONS = [
     description: 'Links to OECD documents, EU government portals, tax authority filing systems, and technical specifications.',
     href: '/resources/external',
     icon: ExternalLink,
-    color: 'text-cyan-600',
-    bgColor: 'bg-cyan-100 dark:bg-cyan-900/30',
+    gradient: 'from-cyan-500 to-cyan-600',
+    shadow: 'shadow-cyan-500/20',
   },
 ];
 
@@ -91,19 +89,23 @@ export default function ResourcesPage() {
   const stats = getResourcesHubStatistics();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-950">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary/5 via-background to-accent/5 py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative py-16 sm:py-24 overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[400px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-6">
               <Database className="h-4 w-4" />
               Knowledge Base
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
+            <h1 className="text-4xl sm:text-5xl font-bold text-slate-100 mb-6">
               Resources & Reference Library
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-slate-400 leading-relaxed">
               Your complete guide to CbCR validation, OECD requirements, country compliance,
               and Pillar 2 global minimum tax. Access the same reference materials used by
               our validation engine.
@@ -112,22 +114,17 @@ export default function ResourcesPage() {
 
           {/* Statistics */}
           <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border">
-              <div className="text-3xl font-bold text-primary">{stats.validationRules}+</div>
-              <div className="text-sm text-muted-foreground">Validation Rules</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border">
-              <div className="text-3xl font-bold text-primary">{stats.oecdErrors}</div>
-              <div className="text-sm text-muted-foreground">OECD Error Codes</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border">
-              <div className="text-3xl font-bold text-primary">{stats.countries}</div>
-              <div className="text-sm text-muted-foreground">Countries</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border">
-              <div className="text-3xl font-bold text-primary">{stats.glossaryTerms}+</div>
-              <div className="text-sm text-muted-foreground">Glossary Terms</div>
-            </div>
+            {[
+              { value: `${stats.validationRules}+`, label: 'Validation Rules' },
+              { value: stats.oecdErrors.toString(), label: 'OECD Error Codes' },
+              { value: stats.countries.toString(), label: 'Countries' },
+              { value: `${stats.glossaryTerms}+`, label: 'Glossary Terms' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-4 text-center">
+                <div className="text-3xl font-bold text-gradient">{stat.value}</div>
+                <div className="text-sm text-slate-500">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -140,16 +137,16 @@ export default function ResourcesPage() {
               const Icon = section.icon;
               return (
                 <Link key={section.id} href={section.href} className="group">
-                  <Card className="h-full transition-all duration-200 hover:shadow-lg hover:border-accent/50 group-hover:-translate-y-1">
+                  <Card className="h-full bg-slate-900/50 border-slate-800/50 hover:border-blue-500/30 transition-all duration-300 group-hover:-translate-y-1">
                     <CardHeader>
-                      <div className={`w-12 h-12 rounded-lg ${section.bgColor} flex items-center justify-center mb-4`}>
-                        <Icon className={`h-6 w-6 ${section.color}`} />
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${section.gradient} shadow-lg ${section.shadow} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className="h-6 w-6 text-white" />
                       </div>
-                      <CardTitle className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 text-slate-100">
                         {section.title}
-                        <ArrowRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-accent" />
+                        <ArrowRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-blue-400" />
                       </CardTitle>
-                      <CardDescription className="text-sm leading-relaxed">
+                      <CardDescription className="text-sm leading-relaxed text-slate-400">
                         {section.description}
                       </CardDescription>
                     </CardHeader>
@@ -162,75 +159,67 @@ export default function ResourcesPage() {
       </section>
 
       {/* Quick Access Section */}
-      <section className="py-16 bg-muted/30">
+      <section className="py-16 bg-slate-900/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-100 mb-4">
               Quick Access
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-slate-400 max-w-2xl mx-auto">
               Jump directly to frequently accessed information
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link
-              href="/resources/validation-rules?category=schema"
-              className="flex items-center gap-3 p-4 bg-white rounded-lg border hover:border-accent/50 hover:shadow-md transition-all"
-            >
-              <Shield className="h-5 w-5 text-violet-600" />
-              <span className="font-medium">Schema Compliance Rules</span>
-            </Link>
-            <Link
-              href="/resources/countries?filter=pillar2"
-              className="flex items-center gap-3 p-4 bg-white rounded-lg border hover:border-accent/50 hover:shadow-md transition-all"
-            >
-              <Scale className="h-5 w-5 text-blue-600" />
-              <span className="font-medium">Pillar 2 Jurisdictions</span>
-            </Link>
-            <Link
-              href="/resources/oecd-errors?severity=critical"
-              className="flex items-center gap-3 p-4 bg-white rounded-lg border hover:border-accent/50 hover:shadow-md transition-all"
-            >
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <span className="font-medium">Critical Errors</span>
-            </Link>
-            <Link
-              href="/resources/external?category=oecd"
-              className="flex items-center gap-3 p-4 bg-white rounded-lg border hover:border-accent/50 hover:shadow-md transition-all"
-            >
-              <FileText className="h-5 w-5 text-cyan-600" />
-              <span className="font-medium">OECD Documents</span>
-            </Link>
+            {[
+              { href: '/resources/validation-rules?category=schema', icon: Shield, color: 'violet', label: 'Schema Compliance Rules' },
+              { href: '/resources/countries?filter=pillar2', icon: Scale, color: 'blue', label: 'Pillar 2 Jurisdictions' },
+              { href: '/resources/oecd-errors?severity=critical', icon: AlertTriangle, color: 'red', label: 'Critical Errors' },
+              { href: '/resources/external?category=oecd', icon: FileText, color: 'cyan', label: 'OECD Documents' },
+            ].map((item, i) => (
+              <Link
+                key={i}
+                href={item.href}
+                className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-800/50 hover:border-blue-500/30 hover:bg-slate-800/50 transition-all group"
+              >
+                <item.icon className={`h-5 w-5 text-${item.color}-400`} />
+                <span className="font-medium text-slate-300 group-hover:text-slate-100 transition-colors">{item.label}</span>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-8 sm:p-12 text-center text-white">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-              Ready to Validate Your CbCR Files?
-            </h2>
-            <p className="text-primary-foreground/80 max-w-2xl mx-auto mb-8">
-              Use our validation engine to check your CbCR XML files against all these rules
-              automatically. Get instant feedback and detailed error reports.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-accent text-white font-medium rounded-lg hover:bg-accent/90 transition-colors"
-              >
-                Get Started Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20 transition-colors border border-white/20"
-              >
-                Sign In
-              </Link>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-blue-500/10 via-slate-900/50 to-indigo-500/10 border border-blue-500/20 overflow-hidden">
+            {/* Background glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-blue-500/20 rounded-full blur-[100px]" />
+            
+            <div className="relative text-center">
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-100 mb-4">
+                Ready to Validate Your CbCR Files?
+              </h2>
+              <p className="text-slate-400 max-w-2xl mx-auto mb-8">
+                Use our validation engine to check your CbCR XML files against all these rules
+                automatically. Get instant feedback and detailed error reports.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:brightness-110 transition-all"
+                >
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="/sign-in"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 text-slate-300 font-medium rounded-xl border border-slate-700 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                >
+                  Sign In
+                </Link>
+              </div>
             </div>
           </div>
         </div>

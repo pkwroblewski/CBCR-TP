@@ -6,7 +6,4 @@
  * @module components/forms
  */
 
-export { ProfileForm } from './ProfileForm';
 export { PreferencesForm } from './PreferencesForm';
-export { SecurityForm } from './SecurityForm';
-

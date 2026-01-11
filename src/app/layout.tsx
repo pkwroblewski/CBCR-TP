@@ -1,19 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
-import { DevModeBanner } from "@/components/layout/DevModeBanner";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/toast";
+import { ConvexClientProvider } from "@/components/convex-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
-  display: "swap",
+  variable: "--font-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  display: "swap",
+  variable: "--font-mono",
 });
 
 // =============================================================================
@@ -99,7 +97,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
   ],
   width: "device-width",
@@ -117,40 +115,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark">
       <head>
         {/* Preconnect to external resources */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
-      >
-        {/* Development mode banner - only shows when auth bypass is enabled */}
-        <DevModeBanner />
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-slate-950`}>
+        <ConvexClientProvider>
+          <ToastProvider>
+            {/* Skip to main content link for accessibility */}
+            <a
+              href="#main-content"
+              className="skip-to-main sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground"
+            >
+              Skip to main content
+            </a>
 
-        {/* Skip to main content link for accessibility */}
-        <a
-          href="#main-content"
-          className="skip-to-main sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground"
-        >
-          Skip to main content
-        </a>
-
-        {/* Main content */}
-        <div id="main-content">
-          {children}
-        </div>
-        
-        {/* Toast notifications */}
-        <Toaster 
-          position="top-right" 
-          richColors 
-          closeButton
-          toastOptions={{
-            duration: 5000,
-          }}
-        />
+            {/* Main content */}
+            <div id="main-content">
+              {children}
+            </div>
+          </ToastProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

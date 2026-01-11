@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CbCStatusMessage_OECD xmlns="urn:oecd:ties:cbcstm:v2" version="2.0">
+  <MessageSpec>
+    <MessageRefId>LU2024-STATUS-001</MessageRefId>
+    <MessageType>CbC</MessageType>
+    <SendingCompetentAuthority>LU</SendingCompetentAuthority>
+    <ReceivingCompetentAuthority>LU</ReceivingCompetentAuthority>
+    <Timestamp>2024-03-20T14:30:00</Timestamp>
+  </MessageSpec>
+  <CbCStatusMessage>
+    <OriginalMessage>
+      <OriginalMessageRefId>LU2024-MSG-001</OriginalMessageRefId>
+    </OriginalMessage>
+    <ValidationErrors>
+      <FileError>
+        <Code>50002</Code>
+        <Message>XML file does not conform to the CbC XML Schema v2.0</Message>
+        <Details>Missing required element: NameMNEGroup</Details>
+      </FileError>
+      <RecordError>
+        <Code>80052</Code>
+        <Message>Invalid TIN format for jurisdiction</Message>
+        <DocRefId>LU2024-RE-001</DocRefId>
+        <Details>TIN does not match expected format for Luxembourg</Details>
+      </RecordError>
+      <RecordError>
+        <Code>80030</Code>
+        <Message>Invalid business activity code</Message>
+        <DocRefId>LU2024-RPT-001</DocRefId>
+        <Details>Business activity code CBC599 is not a valid value</Details>
+      </RecordError>
+    </ValidationErrors>
+    <ValidationResult>
+      <Status>Rejected</Status>
+      <ValidatedBy>Luxembourg Tax Authority (ACD)</ValidatedBy>
+      <Timestamp>2024-03-20T14:30:00</Timestamp>
+    </ValidationResult>
+  </CbCStatusMessage>
+</CbCStatusMessage_OECD>

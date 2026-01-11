@@ -46,6 +46,14 @@ export {
   type TransformResult,
 } from './xml-transformer';
 
+// Status Message Parser exports
+export {
+  StatusMessageParser,
+  parseStatusMessage,
+  isStatusMessage,
+  formatStatusMessageSummary,
+} from './status-message-parser';
+
 // =============================================================================
 // CONVENIENCE FUNCTIONS
 // =============================================================================

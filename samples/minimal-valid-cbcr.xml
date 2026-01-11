@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CBC_OECD xmlns="urn:oecd:ties:cbc:v2" 
+          xmlns:iso="urn:oecd:ties:isocbctypes:v1" 
+          xmlns:stf="urn:oecd:ties:cbcstf:v5"
+          version="2.0">
+  <MessageSpec>
+    <SendingEntityIN>LU12345678901</SendingEntityIN>
+    <TransmittingCountry>LU</TransmittingCountry>
+    <ReceivingCountry>LU</ReceivingCountry>
+    <MessageType>CBC</MessageType>
+    <MessageRefId>LU2024-MSG-001</MessageRefId>
+    <MessageTypeIndic>CBC401</MessageTypeIndic>
+    <ReportingPeriod>2024-12-31</ReportingPeriod>
+    <Timestamp>2024-03-15T10:00:00</Timestamp>
+  </MessageSpec>
+  <CbcBody>
+    <ReportingEntity>
+      <Entity>
+        <ResCountryCode>LU</ResCountryCode>
+        <TIN issuedBy="LU">LU12345678901</TIN>
+        <Name>Test MNE Group SA</Name>
+        <Address>
+          <CountryCode>LU</CountryCode>
+          <AddressFree>1 Test Street, Luxembourg</AddressFree>
+        </Address>
+      </Entity>
+      <NameMNEGroup>Test MNE Group</NameMNEGroup>
+      <DocSpec>
+        <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
+        <stf:DocRefId>LU2024-RE-001</stf:DocRefId>
+      </DocSpec>
+      <ReportingRole>CBC801</ReportingRole>
+    </ReportingEntity>
+    <CbcReports>
+      <DocSpec>
+        <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
+        <stf:DocRefId>LU2024-RPT-001</stf:DocRefId>
+      </DocSpec>
+      <ResCountryCode>LU</ResCountryCode>
+      <Summary>
+        <Revenues>
+          <Unrelated currCode="EUR">1000000</Unrelated>
+          <Related currCode="EUR">500000</Related>
+          <Total currCode="EUR">1500000</Total>
+        </Revenues>
+        <ProfitOrLoss currCode="EUR">200000</ProfitOrLoss>
+        <TaxPaid currCode="EUR">50000</TaxPaid>
+        <TaxAccrued currCode="EUR">50000</TaxAccrued>
+        <Capital currCode="EUR">100000</Capital>
+        <Earnings currCode="EUR">150000</Earnings>
+        <NbEmployees>25</NbEmployees>
+        <Assets currCode="EUR">500000</Assets>
+      </Summary>
+      <ConstEntities>
+        <ConstEntity>
+          <Entity>
+            <ResCountryCode>LU</ResCountryCode>
+            <TIN issuedBy="LU">LU12345678901</TIN>
+            <Name>Test MNE Group SA</Name>
+            <Address>
+              <CountryCode>LU</CountryCode>
+              <AddressFree>1 Test Street, Luxembourg</AddressFree>
+            </Address>
+          </Entity>
+          <Role>CBC801</Role>
+          <BizActivities>CBC503</BizActivities>
+        </ConstEntity>
+      </ConstEntities>
+    </CbcReports>
+  </CbcBody>
+</CBC_OECD>

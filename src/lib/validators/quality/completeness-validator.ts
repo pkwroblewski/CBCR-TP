@@ -12,6 +12,7 @@ import { ValidationResult, ValidationCategory, ValidationSeverity } from '@/type
 import type { Summary, CbcReport, AdditionalInfo } from '@/types/cbcr';
 import { BaseValidator, ValidatorMetadata } from '../core/base-validator';
 import { ValidationContext } from '../core/validation-context';
+import { XSD_STRING_LENGTHS } from '@/constants/validation-rules';
 
 // =============================================================================
 // CONSTANTS
@@ -73,6 +74,9 @@ export class CompletenessValidator extends BaseValidator {
 
       // Check entities present
       results.push(...this.validateEntitiesPresent(report, jurisdiction, basePath));
+
+      // Check string lengths per XSD constraints
+      results.push(...this.validateStringLengths(report, basePath));
     }
 
     // Check ReportingEntity is in entity list
@@ -83,6 +87,12 @@ export class CompletenessValidator extends BaseValidator {
 
     // Check jurisdiction coverage
     results.push(...this.validateJurisdictionCoverage(ctx));
+
+    // Check AdditionalInfo string lengths
+    results.push(...this.validateAdditionalInfoStringLengths(ctx));
+
+    // Check ReportingEntity string lengths
+    results.push(...this.validateReportingEntityStringLengths(ctx));
 
     return results;
   }
@@ -388,6 +398,273 @@ export class CompletenessValidator extends BaseValidator {
       tangibleAssets: 'Assets',
     };
     return mapping[field] ?? field;
+  }
+
+  // ===========================================================================
+  // XSD STRING LENGTH VALIDATION
+  // ===========================================================================
+
+  /**
+   * Validate string lengths in CbcReport per XSD constraints
+   */
+  private validateStringLengths(
+    report: CbcReport,
+    basePath: string
+  ): ValidationResult[] {
+    const results: ValidationResult[] = [];
+    const entities = report.constEntities.constituentEntity;
+
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+      const entityPath = `${basePath}/ConstEntities/ConstituentEntity[${i}]`;
+
+      // Check entity names
+      if (entity.name) {
+        for (let j = 0; j < entity.name.length; j++) {
+          const name = entity.name[j];
+          if (name.value && name.value.length > XSD_STRING_LENGTHS.NAME_MAX) {
+            results.push(
+              this.result('XSD-LEN-001')
+                .error()
+                .schemaCompliance()
+                .message(
+                  `Entity name exceeds maximum length of ${XSD_STRING_LENGTHS.NAME_MAX} characters (${name.value.length} found)`
+                )
+                .xpath(`${entityPath}/Name[${j}]`)
+                .details({
+                  length: name.value.length,
+                  maxLength: XSD_STRING_LENGTHS.NAME_MAX,
+                })
+                .build()
+            );
+          }
+        }
+      }
+
+      // Check TINs
+      if (entity.tin) {
+        for (let j = 0; j < entity.tin.length; j++) {
+          const tin = entity.tin[j];
+          if (tin.value && tin.value.length > XSD_STRING_LENGTHS.TIN_MAX) {
+            results.push(
+              this.result('XSD-LEN-002')
+                .error()
+                .schemaCompliance()
+                .message(
+                  `TIN exceeds maximum length of ${XSD_STRING_LENGTHS.TIN_MAX} characters (${tin.value.length} found)`
+                )
+                .xpath(`${entityPath}/TIN[${j}]`)
+                .build()
+            );
+          }
+        }
+      }
+
+      // Check address fields
+      if (entity.address) {
+        for (let j = 0; j < entity.address.length; j++) {
+          const addr = entity.address[j];
+          const addrPath = `${entityPath}/Address[${j}]`;
+
+          // Check addressFix fields
+          if (addr.addressFix) {
+            // Check city
+            if (addr.addressFix.city && addr.addressFix.city.length > XSD_STRING_LENGTHS.CITY_MAX) {
+              results.push(
+                this.result('XSD-LEN-003')
+                  .error()
+                  .schemaCompliance()
+                  .message(
+                    `City name exceeds maximum length of ${XSD_STRING_LENGTHS.CITY_MAX} characters`
+                  )
+                  .xpath(`${addrPath}/AddressFix/City`)
+                  .build()
+              );
+            }
+
+            // Check postal code
+            if (addr.addressFix.postCode && addr.addressFix.postCode.length > XSD_STRING_LENGTHS.POSTAL_CODE_MAX) {
+              results.push(
+                this.result('XSD-LEN-004')
+                  .error()
+                  .schemaCompliance()
+                  .message(
+                    `Postal code exceeds maximum length of ${XSD_STRING_LENGTHS.POSTAL_CODE_MAX} characters`
+                  )
+                  .xpath(`${addrPath}/AddressFix/PostCode`)
+                  .build()
+              );
+            }
+
+            // Check street
+            if (addr.addressFix.street && addr.addressFix.street.length > XSD_STRING_LENGTHS.ADDRESS_LINE_MAX) {
+              results.push(
+                this.result('XSD-LEN-005')
+                  .error()
+                  .schemaCompliance()
+                  .message(
+                    `Street exceeds maximum length of ${XSD_STRING_LENGTHS.ADDRESS_LINE_MAX} characters`
+                  )
+                  .xpath(`${addrPath}/AddressFix/Street`)
+                  .build()
+              );
+            }
+          }
+
+          // Check addressFree
+          if (addr.addressFree && addr.addressFree.value && addr.addressFree.value.length > XSD_STRING_LENGTHS.OTHER_INFO_MAX) {
+            results.push(
+              this.result('XSD-LEN-006')
+                .error()
+                .schemaCompliance()
+                .message(
+                  `Address free text exceeds maximum length of ${XSD_STRING_LENGTHS.OTHER_INFO_MAX} characters`
+                )
+                .xpath(`${addrPath}/AddressFree`)
+                .build()
+            );
+          }
+        }
+      }
+
+      // Check OtherEntityInfo
+      if (entity.otherEntityInfo && entity.otherEntityInfo.length > XSD_STRING_LENGTHS.OTHER_INFO_MAX) {
+        results.push(
+          this.result('XSD-LEN-006')
+            .error()
+            .schemaCompliance()
+            .message(
+              `OtherEntityInfo exceeds maximum length of ${XSD_STRING_LENGTHS.OTHER_INFO_MAX} characters`
+            )
+            .xpath(`${entityPath}/OtherEntityInfo`)
+            .build()
+        );
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Validate AdditionalInfo string lengths
+   */
+  private validateAdditionalInfoStringLengths(ctx: ValidationContext): ValidationResult[] {
+    const results: ValidationResult[] = [];
+    const additionalInfos = this.getAdditionalInfo(ctx);
+
+    for (let i = 0; i < additionalInfos.length; i++) {
+      const info = additionalInfos[i];
+      const infoPath = this.xpathAdditionalInfo(i);
+
+      if (info.otherInfo) {
+        for (let j = 0; j < info.otherInfo.length; j++) {
+          const otherInfo = info.otherInfo[j];
+          if (otherInfo.value && otherInfo.value.length > XSD_STRING_LENGTHS.OTHER_INFO_MAX) {
+            results.push(
+              this.result('XSD-LEN-007')
+                .error()
+                .schemaCompliance()
+                .message(
+                  `OtherInfo exceeds maximum length of ${XSD_STRING_LENGTHS.OTHER_INFO_MAX} characters (${otherInfo.value.length} found)`
+                )
+                .xpath(`${infoPath}/OtherInfo[${j}]`)
+                .details({
+                  length: otherInfo.value.length,
+                  maxLength: XSD_STRING_LENGTHS.OTHER_INFO_MAX,
+                })
+                .build()
+            );
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Validate ReportingEntity string lengths
+   */
+  private validateReportingEntityStringLengths(ctx: ValidationContext): ValidationResult[] {
+    const results: ValidationResult[] = [];
+    const reportingEntity = this.getReportingEntity(ctx);
+    const rePath = this.xpathReportingEntity();
+
+    // Check names
+    if (reportingEntity.name) {
+      for (let i = 0; i < reportingEntity.name.length; i++) {
+        const name = reportingEntity.name[i];
+        if (name.value && name.value.length > XSD_STRING_LENGTHS.NAME_MAX) {
+          results.push(
+            this.result('XSD-LEN-008')
+              .error()
+              .schemaCompliance()
+              .message(
+                `ReportingEntity name exceeds maximum length of ${XSD_STRING_LENGTHS.NAME_MAX} characters`
+              )
+              .xpath(`${rePath}/Name[${i}]`)
+              .build()
+          );
+        }
+      }
+    }
+
+    // Check TINs
+    if (reportingEntity.tin) {
+      for (let i = 0; i < reportingEntity.tin.length; i++) {
+        const tin = reportingEntity.tin[i];
+        if (tin.value && tin.value.length > XSD_STRING_LENGTHS.TIN_MAX) {
+          results.push(
+            this.result('XSD-LEN-009')
+              .error()
+              .schemaCompliance()
+              .message(
+                `ReportingEntity TIN exceeds maximum length of ${XSD_STRING_LENGTHS.TIN_MAX} characters`
+              )
+              .xpath(`${rePath}/TIN[${i}]`)
+              .build()
+          );
+        }
+      }
+    }
+
+    // Check addresses
+    if (reportingEntity.address) {
+      for (let i = 0; i < reportingEntity.address.length; i++) {
+        const addr = reportingEntity.address[i];
+        const addrPath = `${rePath}/Address[${i}]`;
+
+        if (addr.addressFix) {
+          if (addr.addressFix.city && addr.addressFix.city.length > XSD_STRING_LENGTHS.CITY_MAX) {
+            results.push(
+              this.result('XSD-LEN-010')
+                .error()
+                .schemaCompliance()
+                .message(
+                  `ReportingEntity city name exceeds maximum length of ${XSD_STRING_LENGTHS.CITY_MAX} characters`
+                )
+                .xpath(`${addrPath}/AddressFix/City`)
+                .build()
+            );
+          }
+
+          if (addr.addressFix.postCode && addr.addressFix.postCode.length > XSD_STRING_LENGTHS.POSTAL_CODE_MAX) {
+            results.push(
+              this.result('XSD-LEN-011')
+                .error()
+                .schemaCompliance()
+                .message(
+                  `ReportingEntity postal code exceeds maximum length of ${XSD_STRING_LENGTHS.POSTAL_CODE_MAX} characters`
+                )
+                .xpath(`${addrPath}/AddressFix/PostCode`)
+                .build()
+            );
+          }
+        }
+      }
+    }
+
+    return results;
   }
 }
 

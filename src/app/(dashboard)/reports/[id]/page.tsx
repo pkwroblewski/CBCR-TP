@@ -2,6 +2,8 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../../convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +27,7 @@ import {
   Clock,
   Loader2,
   AlertCircle,
+  Cloud,
 } from 'lucide-react';
 
 /**
@@ -42,6 +45,14 @@ export default function ReportDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isConvexReport, setIsConvexReport] = useState(false);
+
+  // Try to fetch from Convex if this looks like a Convex ID
+  const isConvexId = id && !id.startsWith('local-') && !id.includes('-');
+  const convexReport = useQuery(
+    api.validationReports.get,
+    isConvexId ? { id: id as any } : 'skip'
+  );
 
   /**
    * Download PDF report
@@ -100,60 +111,80 @@ export default function ReportDetailPage({
         if (cachedReport) {
           const parsed = JSON.parse(cachedReport);
           setReport(parsed);
+          setIsConvexReport(!!parsed.convexId);
           setIsLoading(false);
           return;
         }
 
-        // Fetch from API
-        const response = await fetch(`/api/validate/${id}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error?.message || 'Failed to load report');
+        // Check if this looks like an old Supabase ID (numeric or UUID format)
+        // Convex IDs are base64-like strings that are longer
+        const isLegacyId = /^[0-9]+$/.test(id) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        
+        if (isLegacyId) {
+          throw new Error(
+            'This report was stored in the previous database (Supabase) which has been migrated. ' +
+            'Please run a new validation to generate a fresh report.'
+          );
         }
 
-        if (!data.success) {
-          throw new Error(data.error?.message || 'Failed to load report');
+        // If we have a Convex ID but no cached data, wait for Convex query
+        if (isConvexId && convexReport === undefined) {
+          // Still loading from Convex
+          return;
         }
 
-        // Transform API response to report format
-        const apiReport: ValidationReport = {
-          id: data.data.id,
-          filename: data.data.filename,
-          uploadedAt: data.data.uploadedAt,
-          completedAt: data.data.completedAt,
-          status: data.data.status || 'completed',
-          isValid: data.data.isValid,
-          fiscalYear: data.data.fiscalYear,
-          upeJurisdiction: data.data.upeJurisdiction,
-          upeName: data.data.upeName,
-          messageRefId: data.data.messageRefId,
-          jurisdictionCount: data.data.jurisdictionCount,
-          entityCount: data.data.entityCount,
-          durationMs: data.data.durationMs,
-          summary: data.data.summary || {
-            critical: 0,
-            errors: 0,
-            warnings: 0,
-            info: 0,
-            passed: 0,
-            total: 0,
-          },
-          byCategory: data.data.byCategory || {},
-          results: data.data.results || [],
-        };
+        if (isConvexId && convexReport) {
+          // Transform Convex data to ValidationReport format
+          const validationResults = convexReport.validationResults as any;
+          const transformedReport: ValidationReport = {
+            id: convexReport._id,
+            filename: convexReport.fileName,
+            uploadedAt: new Date(convexReport._creationTime).toISOString(),
+            completedAt: new Date(convexReport._creationTime).toISOString(),
+            status: 'completed',
+            isValid: convexReport.totalErrors === 0,
+            fiscalYear: convexReport.reportingPeriod,
+            upeJurisdiction: validationResults?.metadata?.upeJurisdiction,
+            upeName: convexReport.reportingEntity || validationResults?.metadata?.upeName,
+            messageRefId: validationResults?.metadata?.messageRefId,
+            jurisdictionCount: convexReport.jurisdictionCount,
+            entityCount: validationResults?.metadata?.entityCount,
+            durationMs: validationResults?.durationMs,
+            summary: validationResults?.summary || {
+              critical: 0,
+              errors: convexReport.totalErrors,
+              warnings: convexReport.totalWarnings,
+              info: 0,
+              passed: 0,
+              total: convexReport.totalErrors + convexReport.totalWarnings,
+            },
+            byCategory: validationResults?.byCategory || {},
+            results: validationResults?.results || [],
+          };
+          setReport(transformedReport);
+          setIsConvexReport(true);
+          setIsLoading(false);
+          return;
+        }
 
-        setReport(apiReport);
+        // If Convex returned null, report not found
+        if (isConvexId && convexReport === null) {
+          throw new Error('Report not found. It may have been deleted.');
+        }
+
+        // For local IDs, the data should be in sessionStorage
+        throw new Error(
+          'Report not found in cache. Please validate again to generate a new report.'
+        );
       } catch (err) {
         console.error('Failed to fetch report:', err);
         setError(err instanceof Error ? err.message : 'Failed to load report');
-      } finally {
         setIsLoading(false);
       }
     }
 
     fetchReport();
-  }, [id]);
+  }, [id, isConvexId, convexReport]);
 
   // Loading state
   if (isLoading) {
@@ -218,8 +249,14 @@ export default function ReportDetailPage({
             <FileCheck2 className="h-7 w-7" />
             Validation Report
           </h1>
-          <p className="text-slate-600 mt-1 truncate max-w-xl" title={report.filename}>
+          <p className="text-slate-600 mt-1 truncate max-w-xl flex items-center gap-2" title={report.filename}>
             {report.filename}
+            {isConvexReport && (
+              <span className="flex items-center gap-1 text-xs text-blue-500">
+                <Cloud className="h-3 w-3" />
+                Saved
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">

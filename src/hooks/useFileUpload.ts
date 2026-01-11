@@ -5,19 +5,19 @@
  *
  * Custom hook for managing XML file upload state and logic.
  * Handles drag/drop, file validation, and upload progress.
+ * Works without Convex - validation happens via API route.
  *
  * @module hooks/useFileUpload
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { postWithCsrf } from '@/lib/utils/csrf';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
-/** Maximum file size in bytes (10MB) */
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+/** Maximum file size in bytes (50MB) */
+export const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 /** Allowed file extensions */
 const ALLOWED_EXTENSIONS = ['.xml'];
@@ -106,37 +106,6 @@ export interface UseFileUploadReturn extends UploadState {
 
 /**
  * Custom hook for file upload management
- *
- * @example
- * ```tsx
- * function UploadComponent() {
- *   const {
- *     file,
- *     stage,
- *     progress,
- *     error,
- *     isDragActive,
- *     handleDrop,
- *     handleDragOver,
- *     handleSelect,
- *     clearFile,
- *     uploadFile,
- *     inputRef,
- *     openFileDialog,
- *   } = useFileUpload();
- *
- *   return (
- *     <div
- *       onDrop={handleDrop}
- *       onDragOver={handleDragOver}
- *       onClick={openFileDialog}
- *     >
- *       <input ref={inputRef} type="file" onChange={handleSelect} />
- *       {file && <span>{file.name}</span>}
- *     </div>
- *   );
- * }
- * ```
  */
 export function useFileUpload(): UseFileUploadReturn {
   const [state, setState] = useState<UploadState>({
@@ -164,7 +133,6 @@ export function useFileUpload(): UseFileUploadReturn {
    * Validate file before processing
    */
   const validateFile = useCallback((file: File): FileValidationError | null => {
-    // Check if file exists
     if (!file) {
       return {
         type: 'empty',
@@ -173,7 +141,6 @@ export function useFileUpload(): UseFileUploadReturn {
       };
     }
 
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
       return {
@@ -183,7 +150,6 @@ export function useFileUpload(): UseFileUploadReturn {
       };
     }
 
-    // Check file size (empty file)
     if (file.size === 0) {
       return {
         type: 'empty',
@@ -192,7 +158,6 @@ export function useFileUpload(): UseFileUploadReturn {
       };
     }
 
-    // Check file extension
     const fileName = file.name.toLowerCase();
     const hasValidExtension = ALLOWED_EXTENSIONS.some((ext) =>
       fileName.endsWith(ext)
@@ -205,9 +170,7 @@ export function useFileUpload(): UseFileUploadReturn {
       };
     }
 
-    // Check MIME type (if available)
     if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
-      // Some systems may not set MIME type correctly, so just warn
       console.warn(`Unexpected MIME type: ${file.type}`);
     }
 
@@ -224,7 +187,6 @@ export function useFileUpload(): UseFileUploadReturn {
       reader.onload = (e) => {
         const content = e.target?.result as string;
         
-        // Extract XML declaration info
         const xmlDeclMatch = content.match(/<\?xml[^?]*\?>/i);
         let encoding: string | null = null;
         let version: string | null = null;
@@ -236,11 +198,9 @@ export function useFileUpload(): UseFileUploadReturn {
           version = versionMatch?.[1] ?? null;
         }
         
-        // Extract root element
         const rootMatch = content.match(/<([a-zA-Z_][\w:.-]*)[^>]*>/);
         const rootElement = rootMatch?.[1] ?? null;
         
-        // Extract namespace from root element
         let namespace: string | null = null;
         if (rootElement) {
           const rootElementMatch = content.match(new RegExp(`<${rootElement}[^>]*>`));
@@ -250,7 +210,6 @@ export function useFileUpload(): UseFileUploadReturn {
           }
         }
         
-        // Count elements (rough estimate)
         const elementCount = (content.match(/<[a-zA-Z]/g) || []).length;
         
         resolve({
@@ -272,7 +231,6 @@ export function useFileUpload(): UseFileUploadReturn {
         });
       };
       
-      // Read first 10KB for preview
       const slice = file.slice(0, 10240);
       reader.readAsText(slice);
     });
@@ -282,7 +240,6 @@ export function useFileUpload(): UseFileUploadReturn {
    * Process a selected file
    */
   const processFile = useCallback(async (file: File) => {
-    // Validate file
     const validationError = validateFile(file);
     if (validationError) {
       updateState({
@@ -295,7 +252,6 @@ export function useFileUpload(): UseFileUploadReturn {
       return;
     }
 
-    // Extract XML info
     updateState({
       stage: 'parsing',
       statusMessage: 'Reading file...',
@@ -305,15 +261,6 @@ export function useFileUpload(): UseFileUploadReturn {
     try {
       const xmlInfo = await extractXmlInfo(file);
       
-      // Check if it looks like a CbCR file
-      const isCbcr = xmlInfo.rootElement?.includes('CBC') ||
-        xmlInfo.namespace?.includes('cbc') ||
-        xmlInfo.namespace?.includes('CBC');
-      
-      if (!isCbcr && xmlInfo.rootElement) {
-        console.warn(`Root element "${xmlInfo.rootElement}" may not be a CbCR file`);
-      }
-
       updateState({
         file,
         xmlInfo,
@@ -356,9 +303,6 @@ export function useFileUpload(): UseFileUploadReturn {
     [processFile, updateState]
   );
 
-  /**
-   * Handle drag enter
-   */
   const handleDragEnter = useCallback(
     (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault();
@@ -372,9 +316,6 @@ export function useFileUpload(): UseFileUploadReturn {
     [updateState]
   );
 
-  /**
-   * Handle drag leave
-   */
   const handleDragLeave = useCallback(
     (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault();
@@ -388,32 +329,22 @@ export function useFileUpload(): UseFileUploadReturn {
     [updateState]
   );
 
-  /**
-   * Handle drag over
-   */
   const handleDragOver = useCallback((event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
   }, []);
 
-  /**
-   * Handle file input change
-   */
   const handleSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
       if (files && files.length > 0) {
         processFile(files[0]);
       }
-      // Reset input value so same file can be selected again
       event.target.value = '';
     },
     [processFile]
   );
 
-  /**
-   * Clear selected file
-   */
   const clearFile = useCallback(() => {
     setState({
       file: null,
@@ -430,15 +361,12 @@ export function useFileUpload(): UseFileUploadReturn {
     }
   }, []);
 
-  /**
-   * Open file dialog programmatically
-   */
   const openFileDialog = useCallback(() => {
     inputRef.current?.click();
   }, []);
 
   /**
-   * Upload and validate the file
+   * Upload and validate the file via API route
    */
   const uploadFile = useCallback(async (): Promise<string | null> => {
     if (!state.file) {
@@ -457,16 +385,12 @@ export function useFileUpload(): UseFileUploadReturn {
       // Stage 1: Uploading
       updateState({
         stage: 'uploading',
-        progress: 0,
+        progress: 10,
         statusMessage: 'Uploading file...',
         error: null,
       });
 
-      // Simulate upload progress
-      for (let i = 0; i <= 30; i += 10) {
-        await new Promise((r) => setTimeout(r, 100));
-        updateState({ progress: i });
-      }
+      updateState({ progress: 30 });
 
       // Stage 2: Parsing
       updateState({
@@ -475,23 +399,26 @@ export function useFileUpload(): UseFileUploadReturn {
         statusMessage: 'Parsing XML structure...',
       });
 
-      await new Promise((r) => setTimeout(r, 500));
+      // Read file content for validation
+      const content = await state.file.text();
+      
       updateState({ progress: 50 });
 
-      // Stage 3: Validating
+      // Stage 3: Validating via API
       updateState({
         stage: 'validating',
         progress: 60,
         statusMessage: 'Running validation checks...',
       });
 
-      // Read file content
-      const content = await state.file.text();
-
-      // Make API call to validate (with CSRF protection)
-      const response = await postWithCsrf('/api/validate', {
-        filename: state.file.name,
-        content,
+      // Call validation API
+      const response = await fetch('/api/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: state.file.name,
+          content,
+        }),
       });
 
       updateState({ progress: 80 });
@@ -502,21 +429,27 @@ export function useFileUpload(): UseFileUploadReturn {
       }
 
       const result = await response.json();
-      updateState({ progress: 90 });
 
-      // Check if the response was successful
       if (!result.success) {
         throw new Error(result.error?.message || 'Validation failed');
       }
 
-      const reportId = result.data?.reportId;
+      updateState({ progress: 100 });
 
-      // Cache the validation results in sessionStorage for immediate display
-      if (reportId && result.data) {
+      // Use Convex report ID if available, otherwise use local ID
+      const convexReportId = result.data?.convexReportId;
+      const localReportId = result.data?.localReportId || `local-${Date.now()}`;
+      const reportId = convexReportId || localReportId;
+
+      // Cache results for immediate display (always cache for quick access)
+      if (result.data) {
         try {
           const reportData = {
             id: reportId,
+            convexId: convexReportId,
+            localId: localReportId,
             filename: state.file?.name || result.data.metadata?.filename,
+            fileSize: result.data.metadata?.fileSize || state.file?.size || 0,
             uploadedAt: new Date().toISOString(),
             completedAt: new Date().toISOString(),
             status: 'completed',
@@ -532,22 +465,25 @@ export function useFileUpload(): UseFileUploadReturn {
             byCategory: result.data.byCategory,
             results: result.data.results,
           };
+          // Store under both IDs if we have a Convex ID
           sessionStorage.setItem(`validation-report-${reportId}`, JSON.stringify(reportData));
+          if (convexReportId && localReportId !== convexReportId) {
+            sessionStorage.setItem(`validation-report-${localReportId}`, JSON.stringify(reportData));
+          }
         } catch (e) {
           console.warn('Failed to cache validation results:', e);
         }
       }
 
-      // Stage 4: Complete - store reportId in state
+      // Stage 4: Complete
       updateState({
         stage: 'complete',
         progress: 100,
-        statusMessage: 'Validation complete!',
-        reportId: reportId || null,
+        statusMessage: convexReportId ? 'Validation complete! Report saved.' : 'Validation complete!',
+        reportId: reportId,
       });
 
-      // Return the reportId from the nested data object
-      return reportId || null;
+      return reportId;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       updateState({
@@ -581,19 +517,16 @@ export function useFileUpload(): UseFileUploadReturn {
 // UTILITY EXPORTS
 // =============================================================================
 
-export { MAX_FILE_SIZE, ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES };
+export { ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES };
 
 /**
  * Format file size for display
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
-  
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const k = 1024;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${units[i]}`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
@@ -608,4 +541,3 @@ export function formatDate(date: Date): string {
     minute: '2-digit',
   }).format(date);
 }
-

@@ -1133,3 +1133,240 @@ export function getOecdCommonErrorRuleIds(): string[] {
   return Object.keys(OECD_COMMON_ERROR_RULES);
 }
 
+// =============================================================================
+// XSD ENUMERATIONS (from oecdcbctypes_v5.0.xsd and isocbctypes_v1.1.xsd)
+// =============================================================================
+
+/**
+ * Summary List Elements (CBC601-CBC611)
+ *
+ * These codes identify specific elements within the Summary (Table 1) data.
+ * Used in error messages to identify which Summary field has an issue.
+ *
+ * Based on CbcSummaryListElements_EnumType from the XSD schema.
+ */
+export type SummaryListElement =
+  | 'CBC601'   // Revenues - Unrelated Party
+  | 'CBC602'   // Revenues - Related Party
+  | 'CBC603'   // Revenues - Total
+  | 'CBC604'   // Profit (Loss) before Income Tax
+  | 'CBC605'   // Income Tax Paid (on Cash Basis)
+  | 'CBC606'   // Income Tax Accrued - Current Year
+  | 'CBC607'   // Stated Capital
+  | 'CBC608'   // Accumulated Earnings
+  | 'CBC609'   // Number of Employees
+  | 'CBC610'   // Tangible Assets other than Cash and Cash Equivalents
+  | 'CBC611';  // Reserved
+
+export const SUMMARY_LIST_ELEMENTS: Record<SummaryListElement, { name: string; description: string }> = {
+  CBC601: {
+    name: 'Revenues - Unrelated Party',
+    description: 'Revenue from transactions with third parties',
+  },
+  CBC602: {
+    name: 'Revenues - Related Party',
+    description: 'Revenue from transactions with related entities within the MNE group',
+  },
+  CBC603: {
+    name: 'Revenues - Total',
+    description: 'Sum of related and unrelated party revenues',
+  },
+  CBC604: {
+    name: 'Profit (Loss) before Income Tax',
+    description: 'Pre-tax profit or loss for the jurisdiction',
+  },
+  CBC605: {
+    name: 'Income Tax Paid (on Cash Basis)',
+    description: 'Corporate income tax actually paid during the fiscal year',
+  },
+  CBC606: {
+    name: 'Income Tax Accrued - Current Year',
+    description: 'Current year tax expense accrued in financial statements',
+  },
+  CBC607: {
+    name: 'Stated Capital',
+    description: 'Equity capital of entities in the jurisdiction',
+  },
+  CBC608: {
+    name: 'Accumulated Earnings',
+    description: 'Retained earnings/accumulated profits',
+  },
+  CBC609: {
+    name: 'Number of Employees',
+    description: 'Full-time equivalent employees in the jurisdiction',
+  },
+  CBC610: {
+    name: 'Tangible Assets',
+    description: 'Tangible assets excluding cash and cash equivalents',
+  },
+  CBC611: {
+    name: 'Reserved',
+    description: 'Reserved for future use',
+  },
+};
+
+/**
+ * Legal Address Type codes (OECD301-OECD305)
+ *
+ * Used to classify the type of address provided for an entity.
+ * Based on OECDLegalAddressType_EnumType from the XSD schema.
+ */
+export type LegalAddressType =
+  | 'OECD301'  // Residential or Business
+  | 'OECD302'  // Residential
+  | 'OECD303'  // Business
+  | 'OECD304'  // Registered Office
+  | 'OECD305'; // Unspecified
+
+export const LEGAL_ADDRESS_TYPES: Record<LegalAddressType, { name: string; description: string }> = {
+  OECD301: {
+    name: 'Residential or Business',
+    description: 'Address is used for both residential and business purposes',
+  },
+  OECD302: {
+    name: 'Residential',
+    description: 'Residential address only',
+  },
+  OECD303: {
+    name: 'Business',
+    description: 'Business address only',
+  },
+  OECD304: {
+    name: 'Registered Office',
+    description: 'Legal registered office address',
+  },
+  OECD305: {
+    name: 'Unspecified',
+    description: 'Address type not specified',
+  },
+};
+
+/**
+ * Name Type codes (OECD201-OECD208)
+ *
+ * Used to classify the type of name provided for an entity or person.
+ * Based on OECDNameType_EnumType from the XSD schema.
+ */
+export type NameType =
+  | 'OECD201'  // Legal Name
+  | 'OECD202'  // Trade Name / DBA
+  | 'OECD203'  // Individual - Title
+  | 'OECD204'  // Individual - First Name
+  | 'OECD205'  // Individual - Middle Name
+  | 'OECD206'  // Individual - Name Prefix
+  | 'OECD207'  // Individual - Last Name
+  | 'OECD208'; // Individual - Generation Identifier (Jr, Sr, etc)
+
+export const NAME_TYPES: Record<NameType, { name: string; description: string }> = {
+  OECD201: {
+    name: 'Legal Name',
+    description: 'Official legal name of the entity',
+  },
+  OECD202: {
+    name: 'Trade Name / DBA',
+    description: 'Trade name or "Doing Business As" name',
+  },
+  OECD203: {
+    name: 'Title',
+    description: 'Individual title (Mr, Ms, Dr, etc)',
+  },
+  OECD204: {
+    name: 'First Name',
+    description: 'Individual first/given name',
+  },
+  OECD205: {
+    name: 'Middle Name',
+    description: 'Individual middle name',
+  },
+  OECD206: {
+    name: 'Name Prefix',
+    description: 'Name prefix (von, van, de, etc)',
+  },
+  OECD207: {
+    name: 'Last Name',
+    description: 'Individual last/family name',
+  },
+  OECD208: {
+    name: 'Generation Identifier',
+    description: 'Generational suffix (Jr, Sr, III, etc)',
+  },
+};
+
+/**
+ * Reporting Role codes (CBC701-CBC704)
+ *
+ * Used to indicate the role of the MNE filing the CbCR.
+ * Based on CbcReportingRole_EnumType from the XSD schema.
+ *
+ * Note: CBC701 and CBC702 are actually MessageTypeIndic values.
+ * The proper ReportingRole values are CBC801-CBC803 in UltimateParentEntityRole.
+ */
+export type CbcReportingRole =
+  | 'CBC701'   // New Message
+  | 'CBC702'   // Correction
+  | 'CBC703'   // Reserved
+  | 'CBC704';  // Reserved
+
+export const CBC_REPORTING_ROLES: Record<CbcReportingRole, { name: string; description: string }> = {
+  CBC701: {
+    name: 'New Message',
+    description: 'Initial submission of CbC Report',
+  },
+  CBC702: {
+    name: 'Correction',
+    description: 'Correction to previously submitted CbC Report',
+  },
+  CBC703: {
+    name: 'Reserved',
+    description: 'Reserved for future use',
+  },
+  CBC704: {
+    name: 'Reserved',
+    description: 'Reserved for future use',
+  },
+};
+
+// =============================================================================
+// XSD STRING LENGTH CONSTRAINTS
+// =============================================================================
+
+/**
+ * String length constraints from the XSD schema.
+ * These define the maximum lengths for various text fields.
+ */
+export const XSD_STRING_LENGTHS = {
+  /** MessageRefId maximum length */
+  MESSAGE_REF_ID_MAX: 170,
+  /** DocRefId maximum length */
+  DOC_REF_ID_MAX: 200,
+  /** CorrMessageRefId maximum length */
+  CORR_MESSAGE_REF_ID_MAX: 170,
+  /** CorrDocRefId maximum length */
+  CORR_DOC_REF_ID_MAX: 200,
+  /** TIN maximum length */
+  TIN_MAX: 200,
+  /** Name maximum length */
+  NAME_MAX: 200,
+  /** OtherInfo/AdditionalInfo maximum length */
+  OTHER_INFO_MAX: 4000,
+  /** Street address line maximum length */
+  ADDRESS_LINE_MAX: 200,
+  /** City name maximum length */
+  CITY_MAX: 200,
+  /** Country subentity maximum length */
+  SUBENTITY_MAX: 200,
+  /** Postal code maximum length */
+  POSTAL_CODE_MAX: 50,
+  /** Building identifier maximum length */
+  BUILDING_MAX: 200,
+  /** Suite identifier maximum length */
+  SUITE_MAX: 200,
+  /** Floor identifier maximum length */
+  FLOOR_MAX: 200,
+  /** District name maximum length */
+  DISTRICT_MAX: 200,
+  /** POB maximum length */
+  POB_MAX: 200,
+} as const;
+
+export type XsdStringLengthKey = keyof typeof XSD_STRING_LENGTHS;

@@ -28,6 +28,8 @@ import {
   Lightbulb,
   ExternalLink,
   Tag,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 // =============================================================================
@@ -37,6 +39,12 @@ import {
 interface ValidationResultCardProps {
   /** Validation result data */
   result: ValidationResult;
+  /** AI-generated explanation for this finding */
+  aiExplanation?: string;
+  /** Whether AI explanation is being generated */
+  isGeneratingAi?: boolean;
+  /** Callback to request AI explanation generation */
+  onRequestAiExplanation?: () => void;
   /** Whether the card is expanded by default */
   defaultExpanded?: boolean;
   /** Additional CSS classes */
@@ -56,22 +64,22 @@ interface SeverityStyle {
 const SEVERITY_STYLES: Record<ValidationSeverity, SeverityStyle> = {
   critical: {
     icon: <XCircle className="h-4 w-4" />,
-    badgeClass: 'bg-red-100 text-red-800 border-red-200',
+    badgeClass: 'bg-red-500/20 text-red-400 border-red-500/30',
     borderClass: 'border-l-red-500',
   },
   error: {
     icon: <AlertCircle className="h-4 w-4" />,
-    badgeClass: 'bg-orange-100 text-orange-800 border-orange-200',
+    badgeClass: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     borderClass: 'border-l-orange-500',
   },
   warning: {
     icon: <AlertTriangle className="h-4 w-4" />,
-    badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+    badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     borderClass: 'border-l-amber-500',
   },
   info: {
     icon: <Info className="h-4 w-4" />,
-    badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
+    badgeClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     borderClass: 'border-l-blue-500',
   },
 };
@@ -94,6 +102,9 @@ const CATEGORY_LABELS: Record<string, string> = {
  */
 export function ValidationResultCard({
   result,
+  aiExplanation,
+  isGeneratingAi = false,
+  onRequestAiExplanation,
   defaultExpanded = false,
   className,
 }: ValidationResultCardProps) {
@@ -121,7 +132,7 @@ export function ValidationResultCard({
   return (
     <Card
       className={cn(
-        'border-l-4 transition-shadow hover:shadow-md',
+        'border-l-4 transition-shadow hover:shadow-md bg-slate-900/50 border-slate-800',
         severityStyle.borderClass,
         className
       )}
@@ -144,19 +155,53 @@ export function ValidationResultCard({
               >
                 {result.severity.charAt(0).toUpperCase() + result.severity.slice(1)}
               </Badge>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs bg-slate-800 text-slate-300">
                 <Tag className="h-3 w-3 mr-1" />
                 {result.ruleId}
               </Badge>
-              <Badge variant="outline" className="text-xs text-slate-600">
+              <Badge variant="outline" className="text-xs text-slate-400 border-slate-700">
                 {CATEGORY_LABELS[result.category] || result.category}
               </Badge>
             </div>
 
             {/* Message */}
-            <p className="text-sm text-slate-900 leading-relaxed">
+            <p className="text-sm text-slate-200 leading-relaxed">
               {result.message}
             </p>
+
+            {/* AI Explanation Section */}
+            {aiExplanation && (
+              <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-1">
+                  <Sparkles className="h-4 w-4" />
+                  AI Explanation
+                </div>
+                <p className="text-slate-300 text-sm leading-relaxed">{aiExplanation}</p>
+              </div>
+            )}
+
+            {/* AI Loading State */}
+            {isGeneratingAi && !aiExplanation && (
+              <div className="mt-3 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating AI explanation...
+                </div>
+              </div>
+            )}
+
+            {/* Request AI Explanation Button */}
+            {!aiExplanation && !isGeneratingAi && onRequestAiExplanation && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                onClick={onRequestAiExplanation}
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Get AI Explanation
+              </Button>
+            )}
 
             {/* XPath preview */}
             {result.xpath && !isExpanded && (
@@ -187,19 +232,19 @@ export function ValidationResultCard({
 
         {/* Expanded details */}
         {isExpanded && hasDetails && (
-          <div className="mt-4 pt-4 border-t border-slate-100 space-y-4">
+          <div className="mt-4 pt-4 border-t border-slate-700 space-y-4">
             {/* XPath with copy button */}
             {result.xpath && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                  <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
                     <Code className="h-3 w-3" />
                     XPath Location
                   </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-7 text-xs text-slate-400 hover:text-slate-200"
                     onClick={copyXpath}
                   >
                     {copied ? (
@@ -215,7 +260,7 @@ export function ValidationResultCard({
                     )}
                   </Button>
                 </div>
-                <code className="block p-2 bg-slate-100 rounded text-xs font-mono text-slate-700 break-all">
+                <code className="block p-2 bg-slate-800 rounded text-xs font-mono text-slate-300 break-all">
                   {result.xpath}
                 </code>
               </div>
@@ -224,11 +269,11 @@ export function ValidationResultCard({
             {/* Suggestion */}
             {result.suggestion && (
               <div className="space-y-1">
-                <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
                   <Lightbulb className="h-3 w-3" />
                   Suggestion
                 </span>
-                <p className="text-sm text-slate-700 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                <p className="text-sm text-emerald-300 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">
                   {result.suggestion}
                 </p>
               </div>
@@ -237,11 +282,11 @@ export function ValidationResultCard({
             {/* Reference */}
             {result.reference && (
               <div className="space-y-1">
-                <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
                   <ExternalLink className="h-3 w-3" />
                   Reference
                 </span>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-300">
                   {result.reference}
                 </p>
               </div>
@@ -250,10 +295,10 @@ export function ValidationResultCard({
             {/* Additional details */}
             {result.details && Object.keys(result.details).length > 0 && (
               <div className="space-y-1">
-                <span className="text-xs font-medium text-slate-500">
+                <span className="text-xs font-medium text-slate-400">
                   Additional Details
                 </span>
-                <pre className="p-2 bg-slate-100 rounded text-xs font-mono text-slate-700 overflow-x-auto">
+                <pre className="p-2 bg-slate-800 rounded text-xs font-mono text-slate-300 overflow-x-auto">
                   {JSON.stringify(result.details, null, 2)}
                 </pre>
               </div>
@@ -262,10 +307,10 @@ export function ValidationResultCard({
             {/* OECD error code */}
             {result.oecdErrorCode && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">
+                <span className="text-xs font-medium text-slate-400">
                   OECD Error Code:
                 </span>
-                <Badge variant="outline" className="text-xs font-mono">
+                <Badge variant="outline" className="text-xs font-mono text-slate-300 border-slate-600">
                   {result.oecdErrorCode}
                 </Badge>
               </div>

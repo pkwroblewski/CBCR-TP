@@ -868,3 +868,50 @@ export function searchCountries(query: string): CountryInfo[] {
   );
 }
 
+// =============================================================================
+// ISO 4217 CURRENCY CODES (from XSD isocbctypes_v1.1.xsd)
+// =============================================================================
+
+/**
+ * Valid ISO 4217 currency codes per OECD CbCR XSD schema.
+ * This is a subset of commonly used currencies in CbCR reporting.
+ */
+export const VALID_CURRENCY_CODES = new Set([
+  'AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN',
+  'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL',
+  'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY',
+  'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP',
+  'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD',
+  'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HRK', 'HTG', 'HUF', 'IDR', 'ILS',
+  'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR',
+  'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD',
+  'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU',
+  'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK',
+  'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG',
+  'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK',
+  'SGD', 'SHP', 'SLL', 'SOS', 'SRD', 'SSP', 'STN', 'SVC', 'SYP', 'SZL',
+  'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH',
+  'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD',
+  'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL',
+]);
+
+/**
+ * Check if a currency code is a valid ISO 4217 code
+ *
+ * @param code - The currency code to validate
+ * @returns True if valid ISO 4217 currency code
+ */
+export function isValidCurrencyCode(code: string): boolean {
+  if (!code) return false;
+  return VALID_CURRENCY_CODES.has(code.toUpperCase());
+}
+
+/**
+ * Get the currency code for a country
+ *
+ * @param countryCode - ISO 3166-1 Alpha-2 country code
+ * @returns The currency code or undefined
+ */
+export function getCurrencyForCountry(countryCode: string): string | undefined {
+  return COUNTRIES[countryCode]?.currencyCode;
+}

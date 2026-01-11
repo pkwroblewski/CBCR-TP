@@ -1,11 +1,9 @@
 import { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { auth } from '@clerk/nextjs/server';
 import { v4 as uuidv4 } from 'uuid';
 import {
   successResponse,
   badRequest,
-  unauthorized,
   payloadTooLarge,
   unsupportedMediaType,
   handleError,
@@ -23,8 +21,7 @@ import { parseXmlString, validateXmlWellformedness } from '@/lib/parsers/xml-par
 import { extractReportMetadata } from '@/lib/parsers/xml-transformer';
 import { ValidationCategory, ValidationSeverity } from '@/types/validation';
 import type { ValidationResult, ValidationSummary, ValidationReport } from '@/types/validation';
-import { AuditLogService, extractRequestContext } from '@/lib/services/audit-service';
-import { createFullyConfiguredEngine } from '@/lib/validators';
+import { createFullyConfiguredEngine, getXsdValidator } from '@/lib/validators';
 
 // =============================================================================
 // CONSTANTS
@@ -32,17 +29,104 @@ import { createFullyConfiguredEngine } from '@/lib/validators';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+// Convex HTTP endpoint for saving reports
+const CONVEX_SITE_URL = process.env.NEXT_PUBLIC_CONVEX_URL?.replace('.convex.cloud', '.convex.site');
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Extract DocRefIds from validation results to register them
+ */
+function extractDocRefIds(results: ValidationResult[], messageType: string): Array<{ docRefId: string; messageType: string }> {
+  const docRefIds: Array<{ docRefId: string; messageType: string }> = [];
+  
+  // Look for DocRefId-related results
+  for (const result of results) {
+    if (result.details?.docRefId && typeof result.details.docRefId === 'string') {
+      docRefIds.push({
+        docRefId: result.details.docRefId,
+        messageType,
+      });
+    }
+  }
+  
+  return docRefIds;
+}
+
+/**
+ * Persist validation report to Convex database
+ */
+async function persistToConvex(
+  userId: string,
+  filename: string,
+  fileSize: number,
+  report: ValidationReport,
+  messageType: string = 'CBC701'
+): Promise<string | null> {
+  if (!CONVEX_SITE_URL || CONVEX_SITE_URL.includes('placeholder')) {
+    console.log('[API] Convex not configured, skipping persistence');
+    return null;
+  }
+
+  try {
+    const docRefIds = extractDocRefIds(report.results, messageType);
+    
+    const response = await fetch(`${CONVEX_SITE_URL}/saveReport`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        fileName: filename,
+        fileSize,
+        reportingPeriod: report.fiscalYear,
+        reportingEntity: report.upeName,
+        jurisdictionCount: report.jurisdictionCount,
+        totalErrors: report.summary.critical + report.summary.errors,
+        totalWarnings: report.summary.warnings,
+        validationStatus: 'completed',
+        validationResults: {
+          id: report.id,
+          isValid: report.isValid,
+          summary: report.summary,
+          byCategory: report.byCategory,
+          results: report.results,
+          metadata: {
+            fiscalYear: report.fiscalYear,
+            upeJurisdiction: report.upeJurisdiction,
+            upeName: report.upeName,
+            messageRefId: report.messageRefId,
+            jurisdictionCount: report.jurisdictionCount,
+            entityCount: report.entityCount,
+          },
+          durationMs: report.durationMs,
+        },
+        docRefIds,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.error('[API] Failed to persist to Convex:', error);
+      return null;
+    }
+
+    const result = await response.json();
+    console.log('[API] Report persisted to Convex:', result.reportId);
+    return result.reportId;
+  } catch (error) {
+    console.error('[API] Error persisting to Convex:', error);
+    return null;
+  }
+}
+
 // =============================================================================
 // POST /api/validate
 // =============================================================================
 
-/**
- * Validate a CbC XML file
- *
- * Accepts either:
- * - multipart/form-data with 'file' field
- * - application/json with 'content' and 'filename' fields
- */
 /**
  * Handle CORS preflight requests
  */
@@ -54,55 +138,26 @@ export async function OPTIONS(request: NextRequest) {
   );
 }
 
+/**
+ * Validate a CbC XML file
+ *
+ * Accepts either:
+ * - multipart/form-data with 'file' field
+ * - application/json with 'content' and 'filename' fields
+ */
 export async function POST(request: NextRequest) {
-  // Extract request context for audit logging
-  const requestContext = extractRequestContext(request.headers);
-
   try {
-    // Security checks (CSRF + Origin validation)
+    // Security checks (Origin validation)
     const securityResult = performSecurityChecks(request);
     if (!securityResult.allowed) {
-      // Log security event for blocked request
-      await AuditLogService.logSecurityEvent({
-        eventType: 'suspicious_activity',
-        description: 'Request blocked by security checks (CSRF/Origin validation)',
-        severity: 'warning',
-        details: { origin: securityResult.origin },
-        ...requestContext,
-      });
       return addCorsHeaders(securityResult.error!, securityResult.origin ?? null);
     }
 
     // Check rate limit
     const rateLimitError = checkRateLimit(validationRateLimiter, request);
     if (rateLimitError) {
-      // Log rate limit exceeded
-      await AuditLogService.logSecurityEvent({
-        eventType: 'rate_limit_exceeded',
-        description: 'Validation rate limit exceeded',
-        severity: 'warning',
-        ...requestContext,
-      });
       return rateLimitError;
     }
-
-    // Get user session (optional - allow anonymous validation)
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set() {},
-          remove() {},
-        },
-      }
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
 
     // Parse request body
     let xmlContent: string;
@@ -132,14 +187,6 @@ export async function POST(request: NextRequest) {
       // Sanitize filename to prevent path traversal
       const sanitizedName = sanitizeFilename(file.name);
       if (!sanitizedName) {
-        // Log file rejection
-        await AuditLogService.logFileOperation({
-          operation: 'rejected',
-          fileName: file.name,
-          fileSize: file.size,
-          reason: 'Invalid filename (path traversal attempt)',
-          ...requestContext,
-        });
         return addCorsHeaders(
           badRequest('Invalid filename'),
           securityResult.origin ?? null
@@ -174,16 +221,6 @@ export async function POST(request: NextRequest) {
     const reportId = uuidv4();
     const results: ValidationResult[] = [];
 
-    // Log validation started
-    await AuditLogService.logValidation({
-      userId: user?.id,
-      reportId,
-      fileName: filename,
-      status: 'started',
-      metadata: { fileSize: xmlContent.length },
-      ...requestContext,
-    });
-
     // Step 1: XML Well-formedness
     const wellformedResults = validateXmlWellformedness(xmlContent);
     results.push(...wellformedResults);
@@ -196,6 +233,33 @@ export async function POST(request: NextRequest) {
     let metadata: Record<string, unknown> = {};
 
     if (!hasCriticalXmlError) {
+      // Step 1.5: XSD Schema Validation
+      try {
+        const xsdValidator = getXsdValidator();
+        const xsdResult = await xsdValidator.validate(xmlContent, 'strict');
+        
+        if (!xsdResult.valid) {
+          // Convert XSD errors to ValidationResults
+          const xsdValidationResults = xsdValidator.toValidationResults(xsdResult, 'strict');
+          results.push(...xsdValidationResults);
+          
+          // Log XSD validation summary
+          console.log(`XSD Validation: ${xsdResult.errors.length} errors found in ${xsdResult.processingTimeMs}ms`);
+        } else {
+          console.log(`XSD Validation: Passed in ${xsdResult.processingTimeMs}ms`);
+        }
+      } catch (xsdError) {
+        // XSD validation failed but don't block - continue with other validations
+        console.warn('XSD Validation error:', xsdError);
+        results.push({
+          ruleId: 'XSD-000',
+          category: ValidationCategory.SCHEMA_COMPLIANCE,
+          severity: ValidationSeverity.WARNING,
+          message: 'XSD schema validation could not be performed',
+          details: { error: xsdError instanceof Error ? xsdError.message : 'Unknown error' },
+        });
+      }
+
       // Step 2: Parse XML
       const parseResult = parseXmlString(xmlContent);
 
@@ -248,7 +312,7 @@ export async function POST(request: NextRequest) {
       errors: results.filter((r) => r.severity === ValidationSeverity.ERROR).length,
       warnings: results.filter((r) => r.severity === ValidationSeverity.WARNING).length,
       info: results.filter((r) => r.severity === ValidationSeverity.INFO).length,
-      passed: 0, // TODO: Calculate from total rules
+      passed: 0,
       total: results.length,
     };
 
@@ -279,80 +343,43 @@ export async function POST(request: NextRequest) {
       summary,
       byCategory: byCategory as Record<ValidationCategory, number>,
       results,
-      userId: user?.id,
     };
 
-    // Save to database if user is authenticated
-    if (user) {
-      try {
-        const { error: insertError } = await supabase
-          .from('validation_reports')
-          .insert({
-            id: reportId,
-            user_id: user.id,
-            filename,
-            fiscal_year: report.fiscalYear,
-            upe_jurisdiction: report.upeJurisdiction,
-            status: 'completed',
-            summary_json: summary,
-          });
-
-        if (insertError) {
-          console.error('Failed to save report:', insertError);
-        } else {
-          // Save individual results
-          const resultInserts = results.slice(0, 1000).map((result) => ({
-            report_id: reportId,
-            rule_id: result.ruleId,
-            category: result.category,
-            severity: result.severity,
-            message: result.message,
-            xpath: result.xpath,
-            details_json: result.details,
-          }));
-
-          if (resultInserts.length > 0) {
-            const { error: resultsError } = await supabase
-              .from('validation_results')
-              .insert(resultInserts);
-
-            if (resultsError) {
-              console.error('Failed to save results:', resultsError);
-            }
-          }
-        }
-      } catch (dbError) {
-        console.error('Database error:', dbError);
+    // Persist to Convex if user is authenticated
+    let convexReportId: string | null = null;
+    let fileSize = 0;
+    
+    // Calculate file size (approximate from content length)
+    fileSize = new Blob([xmlContent]).size;
+    
+    // Get user ID from Clerk
+    try {
+      const { userId } = await auth();
+      if (userId) {
+        const messageType = (metadata.messageTypeIndic as string) || 'CBC701';
+        convexReportId = await persistToConvex(userId, filename, fileSize, report, messageType);
+      } else {
+        console.log('[API] No authenticated user, skipping persistence');
       }
+    } catch (authError) {
+      console.warn('[API] Auth error, skipping persistence:', authError);
     }
 
-    // Log validation completed
-    await AuditLogService.logValidation({
-      userId: user?.id,
-      reportId,
-      fileName: filename,
-      status: isValid ? 'completed' : 'failed',
-      errorCount: summary.critical + summary.errors,
-      warningCount: summary.warnings,
-      durationMs,
-      metadata: {
-        fiscalYear: report.fiscalYear,
-        upeJurisdiction: report.upeJurisdiction,
-        jurisdictionCount: report.jurisdictionCount,
-        entityCount: report.entityCount,
-      },
-      ...requestContext,
-    });
+    // Use Convex ID if available, otherwise use local ID
+    const finalReportId = convexReportId || reportId;
 
     return addCorsHeaders(
       successResponse({
-        reportId,
+        reportId: finalReportId,
+        convexReportId,
+        localReportId: reportId,
         isValid,
         summary,
         byCategory,
         results,
         metadata: {
           filename,
+          fileSize,
           fiscalYear: report.fiscalYear,
           upeJurisdiction: report.upeJurisdiction,
           upeName: report.upeName,
@@ -364,15 +391,6 @@ export async function POST(request: NextRequest) {
       securityResult.origin ?? null
     );
   } catch (error) {
-    // Log validation error
-    await AuditLogService.logValidation({
-      reportId: uuidv4(),
-      fileName: 'unknown',
-      status: 'error',
-      metadata: { error: error instanceof Error ? error.message : 'Unknown error' },
-      ...requestContext,
-    });
     return handleError(error);
   }
 }
-

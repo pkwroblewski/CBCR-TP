@@ -17,8 +17,11 @@ import { DocRefIdService } from '@/lib/services/docrefid-service';
 // CONSTANTS
 // =============================================================================
 
-/** Maximum length for DocRefId */
+/** Maximum length for DocRefId (per StringMin1Max200_Type) */
 const MAX_DOC_REF_ID_LENGTH = 200;
+
+/** Maximum length for CorrMessageRefId (per StringMin1Max170_Type) */
+const MAX_CORR_MESSAGE_REF_ID_LENGTH = 170;
 
 /** Valid characters for DocRefId */
 const DOC_REF_ID_PATTERN = /^[A-Za-z0-9\-_.]+$/;
@@ -348,6 +351,22 @@ export class DocSpecValidator extends BaseValidator {
               `CorrMessageRefId is required when DocTypeIndic is ${docSpec.docTypeIndic} (correction/deletion)`
             )
             .xpath(`${basePath}/CorrMessageRefId`)
+            .build()
+        );
+      } else if (docSpec.corrMessageRefId && docSpec.corrMessageRefId.length > MAX_CORR_MESSAGE_REF_ID_LENGTH) {
+        // CorrMessageRefId length check (StringMin1Max170_Type)
+        results.push(
+          this.result('DOC-006')
+            .error()
+            .schemaCompliance()
+            .message(
+              `CorrMessageRefId exceeds maximum length of ${MAX_CORR_MESSAGE_REF_ID_LENGTH} characters (${docSpec.corrMessageRefId.length} found)`
+            )
+            .xpath(`${basePath}/CorrMessageRefId`)
+            .details({
+              length: docSpec.corrMessageRefId.length,
+              maxLength: MAX_CORR_MESSAGE_REF_ID_LENGTH,
+            })
             .build()
         );
       }
