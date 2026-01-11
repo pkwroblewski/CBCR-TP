@@ -39,7 +39,7 @@ function Header({ generatedDate }: { generatedDate: string }) {
         <View style={styles.headerLogoBox}>
           <Text style={styles.headerLogoText}>PW</Text>
         </View>
-        <Text style={styles.headerTitle}>PW-(CbCR) Analyzer</Text>
+        <Text style={styles.headerTitle}>CbCR Analyzer</Text>
       </View>
       <Text style={styles.headerDate}>Generated: {generatedDate}</Text>
     </View>
@@ -483,7 +483,7 @@ function AppendixPage({ generatedDate }: { generatedDate: string }) {
           This validation report is provided for informational purposes only and does not
           constitute legal or tax advice. While every effort has been made to ensure accuracy,
           users should independently verify compliance with applicable tax authority requirements.
-          PW-(CbCR) Analyzer and its operators assume no liability for any errors or omissions in this
+          CbCR Analyzer and its operators assume no liability for any errors or omissions in this
           report or for any actions taken based on its contents. Always consult with qualified
           tax professionals before filing Country-by-Country Reports.
         </Text>
@@ -523,9 +523,9 @@ export function ValidationReportPdf({ report }: ValidationReportPdfProps) {
   return (
     <Document
       title={`CbCR Validation Report - ${report.filename}`}
-      author="PW-(CbCR) Analyzer"
+      author="CbCR Analyzer"
       subject="Country-by-Country Report Validation"
-      creator="PW-(CbCR) Analyzer"
+      creator="CbCR Analyzer"
     >
       <CoverPage report={report} generatedDate={generatedDate} />
       <ExecutiveSummaryPage report={report} generatedDate={generatedDate} />

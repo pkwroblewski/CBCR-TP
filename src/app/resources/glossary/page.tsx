@@ -13,7 +13,7 @@ import { GLOSSARY_TERMS } from '@/constants/glossary';
  */
 
 export const metadata = {
-  title: 'Glossary | PW-(CbCR) Analyzer Resources',
+  title: 'Glossary | CbCR Analyzer Resources',
   description:
     'Definitions for 45+ CbCR and Pillar 2 terms, from Action 13 to UTPR, with related concepts and references.',
 };

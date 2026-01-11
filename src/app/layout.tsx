@@ -21,8 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://cbcr-review.com'),
   title: {
-    default: "PW-(CbCR) Analyzer - Country-by-Country Report Validation",
-    template: "%s | PW-(CbCR) Analyzer",
+    default: "CbCR Analyzer - Country-by-Country Report Validation",
+    template: "%s | CbCR Analyzer",
   },
   description:
     "Validate your Country-by-Country Reports against OECD BEPS Action 13 requirements, country-specific rules, and Pillar 2 compliance. Ensure CbCR XML compliance before filing.",
@@ -42,9 +42,9 @@ export const metadata: Metadata = {
     "Multinational Enterprise",
     "MNE",
   ],
-  authors: [{ name: "PW-(CbCR) Analyzer Team" }],
-  creator: "PW-(CbCR) Analyzer",
-  publisher: "PW-(CbCR) Analyzer",
+  authors: [{ name: "CbCR Analyzer Team" }],
+  creator: "CbCR Analyzer",
+  publisher: "CbCR Analyzer",
   robots: {
     index: true,
     follow: true,
@@ -60,8 +60,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://cbcr-review.com",
-    siteName: "PW-(CbCR) Analyzer",
-    title: "PW-(CbCR) Analyzer - Country-by-Country Report Validation",
+    siteName: "CbCR Analyzer",
+    title: "CbCR Analyzer - Country-by-Country Report Validation",
     description:
       "Validate CbCR XML files against OECD requirements, country-specific rules, and Pillar 2 compliance. Professional tax compliance tool for multinational enterprises.",
     images: [
@@ -69,13 +69,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "PW-(CbCR) Analyzer - Country-by-Country Report Validation Tool",
+        alt: "CbCR Analyzer - Country-by-Country Report Validation Tool",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PW-(CbCR) Analyzer - Country-by-Country Report Validation",
+    title: "CbCR Analyzer - Country-by-Country Report Validation",
     description:
       "Validate CbCR XML files against OECD requirements and Pillar 2 compliance.",
     images: ["/og-image.png"],

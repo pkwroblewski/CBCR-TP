@@ -13,7 +13,7 @@ import { getAllCountries, getCountryStatistics } from '@/lib/resources-utils';
  */
 
 export const metadata = {
-  title: 'Country Compliance | PW-(CbCR) Analyzer Resources',
+  title: 'Country Compliance | CbCR Analyzer Resources',
   description:
     'TIN validation patterns, filing deadlines, and CbCR participation status for 195 jurisdictions worldwide.',
 };

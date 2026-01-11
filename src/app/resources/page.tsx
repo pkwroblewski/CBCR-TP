@@ -22,7 +22,7 @@ import { getResourcesHubStatistics } from '@/lib/resources-utils';
  */
 
 export const metadata = {
-  title: 'Resources & Knowledge Base | PW-(CbCR) Analyzer',
+  title: 'Resources & Knowledge Base | CbCR Analyzer',
   description:
     'Complete reference library for CbCR validation, OECD guidelines, country compliance, and Pillar 2 information.',
 };

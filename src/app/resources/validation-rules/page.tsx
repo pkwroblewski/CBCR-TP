@@ -14,7 +14,7 @@ import { getRuleStatistics } from '@/lib/resources-utils';
  */
 
 export const metadata = {
-  title: 'Validation Rules | PW-(CbCR) Analyzer Resources',
+  title: 'Validation Rules | CbCR Analyzer Resources',
   description:
     'Complete library of 70+ CbCR validation rules with OECD error code mappings, XPath references, and remediation guidance.',
 };

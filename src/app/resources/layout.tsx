@@ -26,7 +26,7 @@ export default function ResourcesLayout({
                 PW
               </div>
               <span className="font-semibold text-slate-100 text-lg">
-                PW-(CbCR) Analyzer
+                CbCR Analyzer
               </span>
             </Link>
 
@@ -170,7 +170,7 @@ export default function ResourcesLayout({
 
           <div className="mt-8 pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-sm text-slate-400">
-              © {new Date().getFullYear()} PW-(CbCR) Analyzer. All rights reserved.
+              © {new Date().getFullYear()} CbCR Analyzer. All rights reserved.
             </p>
             <p className="text-xs text-slate-500">
               Reference materials provided for informational purposes. Always verify with official sources.
