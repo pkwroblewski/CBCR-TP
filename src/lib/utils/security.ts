@@ -68,6 +68,11 @@ const CSRF_HEADER_NAME = 'x-csrf-token';
  */
 const CSRF_PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
+/**
+ * Paths exempt from CSRF protection (e.g., file upload APIs with other auth)
+ */
+const CSRF_EXEMPT_PATHS = ['/api/validate'];
+
 // =============================================================================
 // CORS VALIDATION
 // =============================================================================
@@ -318,8 +323,11 @@ export function performSecurityChecks(request: NextRequest): SecurityCheckResult
     };
   }
 
-  // 2. Validate CSRF for state-changing requests
-  if (CSRF_PROTECTED_METHODS.includes(request.method)) {
+  // 2. Validate CSRF for state-changing requests (unless path is exempt)
+  const pathname = new URL(request.url).pathname;
+  const isExemptPath = CSRF_EXEMPT_PATHS.some(path => pathname.startsWith(path));
+
+  if (CSRF_PROTECTED_METHODS.includes(request.method) && !isExemptPath) {
     const csrfResult = validateCsrfToken(request);
     if (!csrfResult.valid) {
       console.warn(`Security: CSRF validation failed - ${csrfResult.error}`);
