@@ -52,12 +52,6 @@ interface ValidationResultsListProps {
 }
 
 type SortOption = 'severity' | 'category' | 'ruleId';
-
-const SORT_LABELS: Record<SortOption, string> = {
-  severity: 'Severity',
-  category: 'Category',
-  ruleId: 'Rule ID',
-};
 type SortDirection = 'asc' | 'desc';
 
 interface FilterState {
@@ -339,7 +333,7 @@ export function ValidationResultsList({
                     : 'text-muted-foreground hover:bg-accent/5 hover:text-foreground'
                 )}
               >
-                {SORT_LABELS[option]}
+                {option === 'severity' ? 'Severity' : option === 'category' ? 'Category' : 'Rule ID'}
                 {sortBy === option && (
                   sortDirection === 'asc' ? (
                     <SortAsc className="h-3.5 w-3.5" />

@@ -328,9 +328,23 @@ export default function ReportDetailPage({
         // First check sessionStorage for recently validated report (try exact ID)
         let cachedReport = sessionStorage.getItem(`validation-report-${id}`);
 
-        // If not found by exact ID, search sessionStorage for matching convexId or localId
+        // If not found by exact ID, search all sessionStorage for matching convexId or localId
         if (!cachedReport) {
-          cachedReport = findCachedReportById(id);
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key?.startsWith('validation-report-')) {
+              try {
+                const data = JSON.parse(sessionStorage.getItem(key) || '{}');
+                // Match by convexId, localId, or id field
+                if (data.convexId === id || data.localId === id || data.id === id) {
+                  cachedReport = JSON.stringify(data);
+                  break;
+                }
+              } catch {
+                // Skip invalid entries
+              }
+            }
+          }
         }
 
         if (cachedReport) {
@@ -637,27 +651,6 @@ export default function ReportDetailPage({
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
-
-/**
- * Search sessionStorage for a cached report by ID
- * Matches against convexId, localId, or id field
- */
-function findCachedReportById(id: string): string | null {
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const key = sessionStorage.key(i);
-    if (!key?.startsWith('validation-report-')) continue;
-
-    try {
-      const data = JSON.parse(sessionStorage.getItem(key) || '{}');
-      if (data.convexId === id || data.localId === id || data.id === id) {
-        return JSON.stringify(data);
-      }
-    } catch {
-      // Skip invalid entries
-    }
-  }
-  return null;
-}
 
 /**
  * Group validation results by rule ID for summary display

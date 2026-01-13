@@ -242,10 +242,10 @@ export function GroupedValidationResults({
   const stats = useMemo(() => {
     const bySeverity = { critical: 0, error: 0, warning: 0, info: 0 };
     for (const r of results) {
-      const severity = r.severity as keyof typeof bySeverity;
-      if (severity in bySeverity) {
-        bySeverity[severity]++;
-      }
+      if (r.severity === 'critical') bySeverity.critical++;
+      else if (r.severity === 'error') bySeverity.error++;
+      else if (r.severity === 'warning') bySeverity.warning++;
+      else bySeverity.info++;
     }
     return { total: results.length, unique: groupedResults.length, bySeverity };
   }, [results, groupedResults]);
