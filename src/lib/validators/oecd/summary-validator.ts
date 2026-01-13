@@ -230,14 +230,15 @@ export class SummaryValidator extends BaseValidator {
 
     // SUM-009: Capital validation
     if (summary.capital.value < 0) {
-      // Negative capital is possible but unusual
+      // Negative capital is possible but unusual - elevated to WARNING for visibility
       results.push(
         this.result('SUM-009')
-          .info()
+          .warning()
           .message(
-            `${jurisdiction}: Negative stated capital (${this.formatCurrency(summary.capital.value)}) - verify this is correct`
+            `${jurisdiction}: Negative stated capital (${this.formatCurrency(summary.capital.value)}) - verify this is correct and consider adding explanation in Table 3`
           )
           .xpath(`${basePath}/Capital`)
+          .suggestion('Document the reason for negative capital in Additional Information (Table 3)')
           .build()
       );
     }

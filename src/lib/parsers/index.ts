@@ -1,24 +1,25 @@
 /**
- * XML Parsers Module
+ * File Parsers Module
  *
- * Provides secure XML parsing and transformation utilities for CbCR files.
+ * Provides secure parsing and transformation utilities for CbCR files.
+ * Supports XML, Excel (.xlsx), and CSV (via ZIP) formats.
  *
  * @module lib/parsers
  *
  * @example
  * ```typescript
- * import { parseAndTransform, validateXmlWellformedness } from '@/lib/parsers';
+ * import { parseFile, detectFileType, parseAndTransform } from '@/lib/parsers';
  *
- * // Validate XML first
- * const validationResults = validateXmlWellformedness(xmlContent);
- * if (validationResults.some(r => r.severity === 'critical')) {
- *   // Handle errors
+ * // Parse any supported file type
+ * const result = await parseFile(buffer, 'report.xlsx', fileSize);
+ * if (result.success) {
+ *   console.log(result.report.message.messageSpec.messageRefId);
  * }
  *
- * // Parse and transform to typed structure
- * const result = parseAndTransform(xmlContent, 'report.xml', fileSize);
- * if (result.success) {
- *   console.log(result.data.message.messageSpec.messageRefId);
+ * // Or use XML-specific parsing
+ * const xmlResult = parseAndTransform(xmlContent, 'report.xml', fileSize);
+ * if (xmlResult.success) {
+ *   console.log(xmlResult.data.message.messageSpec.messageRefId);
  * }
  * ```
  */
@@ -53,6 +54,44 @@ export {
   isStatusMessage,
   formatStatusMessageSummary,
 } from './status-message-parser';
+
+// Excel Parser exports
+export {
+  parseExcelFile,
+  detectExcelLayout,
+  validateExcelStructure,
+  type ExcelParseResult,
+} from './excel-parser';
+
+// Excel Transformer exports
+export {
+  transformExcelToCbcReport,
+} from './excel-transformer';
+
+// CSV Parser exports
+export {
+  parseCsvZip,
+  validateCsvStructure,
+  type CsvParseResult,
+} from './csv-parser';
+
+// CSV Transformer exports
+export {
+  transformCsvToCbcReport,
+} from './csv-transformer';
+
+// Unified File Parser exports
+export {
+  parseFile,
+  detectFileType,
+  isFileTypeSupported,
+  getAcceptedFileTypes,
+  getFilePreview,
+  type SupportedFileType,
+  type FileParseResult,
+  type FileParseError,
+  type FilePreviewInfo,
+} from './file-parser';
 
 // =============================================================================
 // CONVENIENCE FUNCTIONS

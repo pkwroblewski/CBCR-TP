@@ -607,21 +607,17 @@ export default function ReportDetailPage({
       )}
 
       {/* Results by category */}
-      <Card className="bg-slate-900/50 border-slate-800">
-        <CardHeader>
-          <CardTitle className="text-lg text-slate-100">
-            Detailed Validation Results
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CategoryTabs
-            results={report.results}
-            aiExplanations={aiExplanations}
-            generatingFindingId={generatingFindingId}
-            onRequestAiExplanation={handleGenerateSingleExplanation}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-100">Validation Results</h2>
+        </div>
+        <CategoryTabs
+          results={report.results}
+          aiExplanations={aiExplanations}
+          generatingFindingId={generatingFindingId}
+          onRequestAiExplanation={handleGenerateSingleExplanation}
+        />
+      </div>
     </div>
   );
 }
@@ -631,7 +627,55 @@ export default function ReportDetailPage({
 // =============================================================================
 
 /**
+ * Group validation results by rule ID for summary display
+ */
+interface GroupedResultForReport {
+  ruleId: string;
+  severity: string;
+  count: number;
+  message: string;
+  suggestion?: string;
+  sampleXpaths: string[];
+}
+
+function groupResultsForReport(results: ValidationResult[]): GroupedResultForReport[] {
+  const groups = new Map<string, GroupedResultForReport>();
+
+  for (const result of results) {
+    const key = result.ruleId;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ruleId: result.ruleId,
+        severity: result.severity,
+        count: 0,
+        message: result.message,
+        suggestion: result.suggestion,
+        sampleXpaths: [],
+      });
+    }
+
+    const group = groups.get(key)!;
+    group.count++;
+
+    // Store up to 3 sample xpaths
+    if (result.xpath && group.sampleXpaths.length < 3) {
+      group.sampleXpaths.push(result.xpath);
+    }
+  }
+
+  // Sort by severity, then by count (descending)
+  const severityOrder: Record<string, number> = { critical: 0, error: 1, warning: 2, info: 3 };
+  return Array.from(groups.values()).sort((a, b) => {
+    const severityDiff = (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4);
+    if (severityDiff !== 0) return severityDiff;
+    return b.count - a.count;
+  });
+}
+
+/**
  * Generate a text report for fallback when PDF API is unavailable
+ * Now uses grouped results for better readability
  */
 function generateTextReport(report: ValidationReport): string {
   const lines: string[] = [];
@@ -651,6 +695,8 @@ function generateTextReport(report: ValidationReport): string {
   lines.push(`Fiscal Year: ${report.fiscalYear || 'N/A'}`);
   lines.push(`UPE Jurisdiction: ${report.upeJurisdiction || 'N/A'}`);
   lines.push(`UPE Name: ${report.upeName || 'N/A'}`);
+  lines.push(`Jurisdictions: ${report.jurisdictionCount || 'N/A'}`);
+  lines.push(`Entities: ${report.entityCount || 'N/A'}`);
   lines.push(`Generated: ${new Date().toLocaleString()}`);
   lines.push('');
 
@@ -667,8 +713,7 @@ function generateTextReport(report: ValidationReport): string {
   lines.push(`Errors: ${report.summary.errors}`);
   lines.push(`Warnings: ${report.summary.warnings}`);
   lines.push(`Informational: ${report.summary.info}`);
-  lines.push(`Total Checks: ${report.summary.total}`);
-  lines.push(`Passed: ${report.summary.passed}`);
+  lines.push(`Total Issues: ${report.results.length}`);
   const score = report.summary.total > 0
     ? Math.round((report.summary.passed / report.summary.total) * 100)
     : 100;
@@ -689,36 +734,76 @@ function generateTextReport(report: ValidationReport): string {
   }
   lines.push('');
 
-  // Detailed Results
+  // Grouped Results - Executive Summary
   if (report.results.length > 0) {
-    lines.push('DETAILED FINDINGS');
-    lines.push(subDivider);
+    const groupedResults = groupResultsForReport(report.results);
+    const uniqueRules = groupedResults.length;
 
-    // Group by severity
-    const bySeverity: Record<string, ValidationResult[]> = {};
-    for (const result of report.results) {
-      if (!bySeverity[result.severity]) {
-        bySeverity[result.severity] = [];
+    lines.push(divider);
+    lines.push('ISSUES SUMMARY (GROUPED BY RULE)');
+    lines.push(divider);
+    lines.push('');
+    lines.push(`Found ${report.results.length} total issues across ${uniqueRules} unique validation rules.`);
+    lines.push('Issues are grouped by rule ID to make review easier.');
+    lines.push('');
+
+    // Group by severity for the summary
+    const bySeverity: Record<string, GroupedResultForReport[]> = {};
+    for (const group of groupedResults) {
+      if (!bySeverity[group.severity]) {
+        bySeverity[group.severity] = [];
       }
-      bySeverity[result.severity].push(result);
+      bySeverity[group.severity].push(group);
     }
 
     const severityOrder = ['critical', 'error', 'warning', 'info'];
+    const severityLabels: Record<string, string> = {
+      critical: 'CRITICAL - Must Fix Before Submission',
+      error: 'ERRORS - Should Be Addressed',
+      warning: 'WARNINGS - Review Recommended',
+      info: 'INFO - For Your Information',
+    };
+
     for (const severity of severityOrder) {
-      const results = bySeverity[severity];
-      if (results && results.length > 0) {
+      const groups = bySeverity[severity];
+      if (groups && groups.length > 0) {
+        const totalCount = groups.reduce((sum, g) => sum + g.count, 0);
+
         lines.push('');
-        lines.push(`[${severity.toUpperCase()}] - ${results.length} issue(s)`);
+        lines.push(subDivider);
+        lines.push(`[${severityLabels[severity]}]`);
+        lines.push(`${totalCount} issue(s) across ${groups.length} rule(s)`);
+        lines.push(subDivider);
         lines.push('');
-        for (const result of results) {
-          lines.push(`  Rule: ${result.ruleId}`);
-          lines.push(`  Message: ${result.message}`);
-          if (result.xpath) {
-            lines.push(`  Location: ${result.xpath}`);
+
+        for (const group of groups) {
+          lines.push(`  ${group.ruleId} (${group.count} occurrence${group.count > 1 ? 's' : ''})`);
+          lines.push(`  ${'-'.repeat(60)}`);
+
+          // Show a generic version of the message for grouped items
+          let displayMessage = group.message;
+          if (group.count > 1) {
+            // Try to make the message more generic if it's entity-specific
+            displayMessage = displayMessage
+              .replace(/Entity ['"][^'"]+['"]:/i, 'Multiple entities:')
+              .replace(/^([A-Z]{2}):/, 'Multiple jurisdictions:');
           }
-          if (result.suggestion) {
-            lines.push(`  Suggestion: ${result.suggestion}`);
+          lines.push(`  Issue: ${displayMessage}`);
+
+          if (group.suggestion) {
+            lines.push(`  Suggestion: ${group.suggestion}`);
           }
+
+          if (group.sampleXpaths.length > 0) {
+            lines.push(`  Sample locations:`);
+            for (const xpath of group.sampleXpaths) {
+              lines.push(`    - ${xpath}`);
+            }
+            if (group.count > group.sampleXpaths.length) {
+              lines.push(`    ... and ${group.count - group.sampleXpaths.length} more occurrence(s)`);
+            }
+          }
+
           lines.push('');
         }
       }

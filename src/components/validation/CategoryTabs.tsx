@@ -3,42 +3,29 @@
 /**
  * Category Tabs Component
  *
- * Tab navigation for validation categories with result count badges.
+ * Sophisticated dark-themed tab navigation for validation categories.
+ * Clean, minimal design for enterprise compliance tools.
  *
  * @module components/validation/CategoryTabs
  */
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { ValidationResult, ValidationCategory } from '@/types/validation';
 import { ValidationResultsList } from './ValidationResultsList';
-import {
-  FileCode2,
-  FileCheck,
-  Briefcase,
-  Globe,
-  BarChart3,
-  Building2,
-  LayoutGrid,
-} from 'lucide-react';
+import { GroupedValidationResults } from './GroupedValidationResults';
+import { Layers, List } from 'lucide-react';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 interface CategoryTabsProps {
-  /** All validation results */
   results: ValidationResult[];
-  /** Default active tab */
   defaultTab?: string;
-  /** Additional CSS classes */
   className?: string;
-  /** AI explanations keyed by finding ID (ruleId-index) */
   aiExplanations?: Record<string, string>;
-  /** ID of finding currently generating AI explanation */
   generatingFindingId?: string | null;
-  /** Callback when user requests AI explanation for a finding */
   onRequestAiExplanation?: (findingId: string, finding: ValidationResult) => void;
 }
 
@@ -46,7 +33,6 @@ interface CategoryConfig {
   id: string;
   value: ValidationCategory | 'all';
   label: string;
-  icon: React.ReactNode;
 }
 
 // =============================================================================
@@ -54,57 +40,21 @@ interface CategoryConfig {
 // =============================================================================
 
 const CATEGORIES: CategoryConfig[] = [
-  {
-    id: 'all',
-    value: 'all',
-    label: 'All',
-    icon: <LayoutGrid className="h-4 w-4" />,
-  },
-  {
-    id: 'xml',
-    value: 'xml_wellformedness' as ValidationCategory,
-    label: 'XML',
-    icon: <FileCode2 className="h-4 w-4" />,
-  },
-  {
-    id: 'schema',
-    value: 'schema_compliance' as ValidationCategory,
-    label: 'Schema',
-    icon: <FileCheck className="h-4 w-4" />,
-  },
-  {
-    id: 'business',
-    value: 'business_rules' as ValidationCategory,
-    label: 'Business',
-    icon: <Briefcase className="h-4 w-4" />,
-  },
-  {
-    id: 'country',
-    value: 'country_rules' as ValidationCategory,
-    label: 'Country',
-    icon: <Globe className="h-4 w-4" />,
-  },
-  {
-    id: 'quality',
-    value: 'data_quality' as ValidationCategory,
-    label: 'Quality',
-    icon: <BarChart3 className="h-4 w-4" />,
-  },
-  {
-    id: 'pillar2',
-    value: 'pillar2_readiness' as ValidationCategory,
-    label: 'Pillar 2',
-    icon: <Building2 className="h-4 w-4" />,
-  },
+  { id: 'all', value: 'all', label: 'All' },
+  { id: 'xml', value: 'xml_wellformedness' as ValidationCategory, label: 'XML' },
+  { id: 'schema', value: 'schema_compliance' as ValidationCategory, label: 'Schema' },
+  { id: 'business', value: 'business_rules' as ValidationCategory, label: 'Business' },
+  { id: 'country', value: 'country_rules' as ValidationCategory, label: 'Country' },
+  { id: 'quality', value: 'data_quality' as ValidationCategory, label: 'Quality' },
+  { id: 'pillar2', value: 'pillar2_readiness' as ValidationCategory, label: 'Pillar 2' },
 ];
+
+type ViewMode = 'grouped' | 'flat';
 
 // =============================================================================
 // COMPONENT
 // =============================================================================
 
-/**
- * Tabbed navigation for validation categories
- */
 export function CategoryTabs({
   results,
   defaultTab = 'all',
@@ -113,87 +63,103 @@ export function CategoryTabs({
   generatingFindingId,
   onRequestAiExplanation,
 }: CategoryTabsProps) {
-  /**
-   * Get results for a category
-   */
+  const [viewMode, setViewMode] = useState<ViewMode>('grouped');
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
   const getResultsForCategory = (category: ValidationCategory | 'all'): ValidationResult[] => {
-    if (category === 'all') {
-      return results;
-    }
+    if (category === 'all') return results;
     return results.filter((r) => r.category === category);
   };
 
-  /**
-   * Get count for a category
-   */
   const getCountForCategory = (category: ValidationCategory | 'all'): number => {
     return getResultsForCategory(category).length;
   };
 
-  /**
-   * Get badge variant based on count and severity
-   */
-  const getBadgeVariant = (category: ValidationCategory | 'all'): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    const categoryResults = getResultsForCategory(category);
-    if (categoryResults.length === 0) return 'outline';
-    
-    const hasCritical = categoryResults.some((r) => r.severity === 'critical');
-    const hasError = categoryResults.some((r) => r.severity === 'error');
-    
-    if (hasCritical) return 'destructive';
-    if (hasError) return 'default';
-    return 'secondary';
-  };
+  const activeCategory = CATEGORIES.find((c) => c.id === activeTab)?.value || 'all';
+  const activeResults = getResultsForCategory(activeCategory);
 
   return (
-    <Tabs defaultValue={defaultTab} className={cn('w-full', className)}>
-      <TabsList className="w-full h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1.5 rounded-lg">
-        {CATEGORIES.map((category) => {
-          const count = getCountForCategory(category.value);
-          const variant = getBadgeVariant(category.value);
+    <div className={cn('space-y-4', className)}>
+      {/* Controls Row - Compact and clean */}
+      <div className="flex items-center justify-between">
+        {/* View Toggle */}
+        <div className="inline-flex items-center bg-slate-800/50 rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode('grouped')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+              viewMode === 'grouped'
+                ? 'bg-slate-700 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Summary
+          </button>
+          <button
+            onClick={() => setViewMode('flat')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+              viewMode === 'flat'
+                ? 'bg-slate-700 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            <List className="h-3.5 w-3.5" />
+            Detail
+          </button>
+        </div>
 
-          return (
-            <TabsTrigger
-              key={category.id}
-              value={category.id}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-md',
-                'data-[state=active]:bg-white data-[state=active]:shadow-sm',
-                'transition-all duration-200'
-              )}
-            >
-              <span className="text-slate-500">{category.icon}</span>
-              <span className="hidden sm:inline">{category.label}</span>
-              <Badge
-                variant={variant}
+        {/* Category Pills */}
+        <div className="flex items-center gap-1">
+          {CATEGORIES.map((category) => {
+            const count = getCountForCategory(category.value);
+            const isActive = activeTab === category.id;
+
+            return (
+              <button
+                key={category.id}
+                onClick={() => setActiveTab(category.id)}
                 className={cn(
-                  'h-5 min-w-[20px] px-1.5 text-[10px] font-semibold',
-                  count === 0 && 'opacity-50'
+                  'px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : count > 0
+                      ? 'text-slate-300 hover:bg-slate-800'
+                      : 'text-slate-500 hover:bg-slate-800/50'
                 )}
               >
-                {count}
-              </Badge>
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
+                {category.label}
+                {count > 0 && (
+                  <span className={cn(
+                    'ml-1.5 text-[10px]',
+                    isActive ? 'text-blue-200' : 'text-slate-500'
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-      {CATEGORIES.map((category) => (
-        <TabsContent
-          key={category.id}
-          value={category.id}
-          className="mt-6 focus-visible:outline-none"
-        >
-          <ValidationResultsList
-            results={getResultsForCategory(category.value)}
-            maxHeight="calc(100vh - 400px)"
-            aiExplanations={aiExplanations}
-            generatingFindingId={generatingFindingId}
-            onRequestAiExplanation={onRequestAiExplanation}
-          />
-        </TabsContent>
-      ))}
-    </Tabs>
+      {/* Content */}
+      {viewMode === 'grouped' ? (
+        <GroupedValidationResults
+          results={activeResults}
+          maxHeight="calc(100vh - 520px)"
+          maxSampleItems={5}
+        />
+      ) : (
+        <ValidationResultsList
+          results={activeResults}
+          maxHeight="calc(100vh - 480px)"
+          aiExplanations={aiExplanations}
+          generatingFindingId={generatingFindingId}
+          onRequestAiExplanation={onRequestAiExplanation}
+        />
+      )}
+    </div>
   );
 }
-

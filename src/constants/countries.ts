@@ -915,3 +915,15 @@ export function isValidCurrencyCode(code: string): boolean {
 export function getCurrencyForCountry(countryCode: string): string | undefined {
   return COUNTRIES[countryCode]?.currencyCode;
 }
+
+// =============================================================================
+// SIMPLE CODE-TO-NAME MAPPING
+// =============================================================================
+
+/**
+ * Simple mapping of country codes to country names
+ * Derived from COUNTRIES for convenience
+ */
+export const COUNTRY_CODES: Record<string, string> = Object.fromEntries(
+  Object.entries(COUNTRIES).map(([code, info]) => [code, info.name])
+);

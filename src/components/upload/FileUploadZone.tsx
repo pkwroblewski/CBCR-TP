@@ -132,7 +132,7 @@ export function FileUploadZone({
             <div
               role="button"
               tabIndex={0}
-              aria-label="Drop zone for CbC XML files. Click or drag and drop to upload."
+              aria-label="Drop zone for CbC Report files (XML, Excel, or CSV ZIP). Click or drag and drop to upload."
               aria-describedby={error ? 'upload-error' : undefined}
               onDrop={handleDrop}
               onDragEnter={handleDragEnter}
@@ -169,10 +169,10 @@ export function FileUploadZone({
               <input
                 ref={inputRef}
                 type="file"
-                accept=".xml,text/xml,application/xml"
+                accept=".xml,.xlsx,.zip,text/xml,application/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip"
                 onChange={handleFileChange}
                 className="hidden"
-                aria-label="Select XML file"
+                aria-label="Select CbCR file (XML, Excel, or CSV ZIP)"
               />
 
               {/* Drag indicator */}
@@ -199,7 +199,7 @@ export function FileUploadZone({
                 <p className="text-foreground font-semibold text-lg">
                   {isDragActive
                     ? 'Drop your file here'
-                    : 'Drag & drop your CbC XML file'}
+                    : 'Drag & drop your CbC Report file'}
                 </p>
                 <p className="text-muted-foreground mt-2">
                   or{' '}
@@ -213,7 +213,7 @@ export function FileUploadZone({
               <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/60 rounded-full">
                   <FileCode2 className="h-3.5 w-3.5 text-accent" />
-                  XML files only
+                  XML, Excel, or CSV
                 </span>
                 <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/60 rounded-full">
                   <Zap className="h-3.5 w-3.5 text-accent" />
@@ -223,6 +223,18 @@ export function FileUploadZone({
                   <Shield className="h-3.5 w-3.5 text-accent" />
                   OECD CbC-Schema v2.0
                 </span>
+              </div>
+
+              {/* Template download link */}
+              <div className="flex justify-center mt-4">
+                <a
+                  href="/api/template/excel"
+                  download="cbcr-template.xlsx"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs text-accent hover:underline flex items-center gap-1"
+                >
+                  Download Excel template
+                </a>
               </div>
 
               {/* Error display */}

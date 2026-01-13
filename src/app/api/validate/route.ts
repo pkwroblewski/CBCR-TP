@@ -19,8 +19,10 @@ import {
 } from '@/lib/utils/security';
 import { parseXmlString, validateXmlWellformedness } from '@/lib/parsers/xml-parser';
 import { extractReportMetadata } from '@/lib/parsers/xml-transformer';
+import { parseFile, detectFileType } from '@/lib/parsers/file-parser';
 import { ValidationCategory, ValidationSeverity } from '@/types/validation';
 import type { ValidationResult, ValidationSummary, ValidationReport } from '@/types/validation';
+import type { ParsedCbcReport } from '@/types/cbcr';
 import { createFullyConfiguredEngine, getXsdValidator } from '@/lib/validators';
 
 // =============================================================================
@@ -124,6 +126,140 @@ async function persistToConvex(
 }
 
 // =============================================================================
+// HELPER: VALIDATE PARSED REPORT
+// =============================================================================
+
+/**
+ * Validate a pre-parsed CbCR report (from Excel or CSV)
+ * Runs the validation engine and returns the result
+ */
+async function validateParsedReport(
+  cbcReport: ParsedCbcReport,
+  filename: string,
+  fileSize: number,
+  parsingWarnings: string[],
+  origin: string | null
+): Promise<Response> {
+  const startTime = Date.now();
+  const reportId = uuidv4();
+  const results: ValidationResult[] = [];
+
+  // Add parsing warnings as INFO level results
+  for (const warning of parsingWarnings) {
+    results.push({
+      ruleId: 'PARSE-WARN',
+      category: ValidationCategory.DATA_QUALITY,
+      severity: ValidationSeverity.INFO,
+      message: warning,
+    });
+  }
+
+  // Extract metadata from the parsed report
+  const metadata = extractReportMetadata(cbcReport);
+
+  // Run full validation engine with all validators
+  try {
+    const engine = createFullyConfiguredEngine('LU', true);
+
+    const engineReport = await engine.validate(cbcReport, {
+      country: 'LU',
+      checkPillar2: true,
+      strictMode: false,
+    });
+
+    if (engineReport.results) {
+      results.push(...engineReport.results);
+    }
+  } catch (engineError) {
+    console.error('Validation engine error:', engineError);
+    results.push({
+      ruleId: 'ENGINE-001',
+      category: ValidationCategory.XML_WELLFORMEDNESS,
+      severity: ValidationSeverity.WARNING,
+      message: 'Full validation engine encountered an error. Basic validation completed.',
+      details: { error: engineError instanceof Error ? engineError.message : 'Unknown error' },
+    });
+  }
+
+  // Calculate summary
+  const summary: ValidationSummary = {
+    critical: results.filter((r) => r.severity === ValidationSeverity.CRITICAL).length,
+    errors: results.filter((r) => r.severity === ValidationSeverity.ERROR).length,
+    warnings: results.filter((r) => r.severity === ValidationSeverity.WARNING).length,
+    info: results.filter((r) => r.severity === ValidationSeverity.INFO).length,
+    passed: 0,
+    total: results.length,
+  };
+
+  // Calculate by category
+  const byCategory: Record<string, number> = {};
+  for (const result of results) {
+    byCategory[result.category] = (byCategory[result.category] || 0) + 1;
+  }
+
+  const durationMs = Date.now() - startTime;
+  const isValid = summary.critical === 0;
+
+  // Create report object
+  const report: ValidationReport = {
+    id: reportId,
+    filename,
+    uploadedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    status: 'completed',
+    isValid,
+    fiscalYear: metadata.reportingPeriod,
+    upeJurisdiction: metadata.upeJurisdiction,
+    upeName: metadata.upeName,
+    messageRefId: metadata.messageRefId,
+    jurisdictionCount: metadata.jurisdictionCount,
+    entityCount: metadata.entityCount,
+    durationMs,
+    summary,
+    byCategory: byCategory as Record<ValidationCategory, number>,
+    results,
+  };
+
+  // Persist to Convex if user is authenticated
+  let convexReportId: string | null = null;
+
+  try {
+    const { userId } = await auth();
+    if (userId) {
+      // For Excel/CSV, we don't have messageTypeIndic - default to CBC701
+      convexReportId = await persistToConvex(userId, filename, fileSize, report, 'CBC701');
+    }
+  } catch (authError) {
+    console.warn('[API] Auth error, skipping persistence:', authError);
+  }
+
+  const finalReportId = convexReportId || reportId;
+
+  return addCorsHeaders(
+    successResponse({
+      reportId: finalReportId,
+      convexReportId,
+      localReportId: reportId,
+      isValid,
+      summary,
+      byCategory,
+      results,
+      metadata: {
+        filename,
+        fileSize,
+        fiscalYear: metadata.reportingPeriod,
+        upeJurisdiction: metadata.upeJurisdiction,
+        upeName: metadata.upeName,
+        jurisdictionCount: metadata.jurisdictionCount,
+        entityCount: metadata.entityCount,
+      },
+      durationMs,
+    }),
+    origin
+  );
+}
+
+// =============================================================================
 // POST /api/validate
 // =============================================================================
 
@@ -147,11 +283,16 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log('[API/validate] POST request received');
+    console.log('[API/validate] Content-Type:', request.headers.get('content-type'));
+
     // Security checks (Origin validation)
     const securityResult = performSecurityChecks(request);
     if (!securityResult.allowed) {
+      console.log('[API/validate] Security check failed');
       return addCorsHeaders(securityResult.error!, securityResult.origin ?? null);
     }
+    console.log('[API/validate] Security check passed');
 
     // Check rate limit
     const rateLimitError = checkRateLimit(validationRateLimiter, request);
@@ -165,12 +306,19 @@ export async function POST(request: NextRequest) {
 
     const contentType = request.headers.get('content-type') || '';
 
+    // Valid file extensions
+    const VALID_EXTENSIONS = ['.xml', '.xlsx', '.zip'];
+
     if (contentType.includes('multipart/form-data')) {
+      console.log('[API/validate] Processing multipart/form-data');
       // Handle file upload
       const formData = await request.formData();
       const file = formData.get('file') as File | null;
 
+      console.log('[API/validate] File from form:', file?.name, file?.size, file?.type);
+
       if (!file) {
+        console.log('[API/validate] No file in form data');
         return badRequest('No file provided');
       }
 
@@ -180,21 +328,70 @@ export async function POST(request: NextRequest) {
       }
 
       // Check file type
-      if (!file.name.endsWith('.xml')) {
-        return unsupportedMediaType('Only XML files are accepted');
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      console.log('[API/validate] File extension:', fileExtension);
+      if (!VALID_EXTENSIONS.includes(fileExtension)) {
+        console.log('[API/validate] Invalid extension');
+        return unsupportedMediaType('Only XML (.xml), Excel (.xlsx), or CSV ZIP (.zip) files are accepted');
       }
 
       // Sanitize filename to prevent path traversal
       const sanitizedName = sanitizeFilename(file.name);
+      console.log('[API/validate] Sanitized name:', sanitizedName);
       if (!sanitizedName) {
+        console.log('[API/validate] Sanitization failed');
         return addCorsHeaders(
           badRequest('Invalid filename'),
           securityResult.origin ?? null
         );
       }
       filename = sanitizedName;
-      xmlContent = await file.text();
+
+      // Determine file type and handle accordingly
+      const fileType = detectFileType(filename);
+      console.log('[API/validate] Detected file type:', fileType);
+
+      if (fileType === 'xml') {
+        // For XML, read as text
+        xmlContent = await file.text();
+      } else {
+        // For Excel/CSV, use the unified file parser
+        console.log('[API/validate] Processing Excel/CSV file');
+        const buffer = await file.arrayBuffer();
+        console.log('[API/validate] Buffer size:', buffer.byteLength);
+
+        try {
+          const parseResult = await parseFile(buffer, filename, file.size);
+          console.log('[API/validate] Parse result success:', parseResult.success);
+
+          if (!parseResult.success) {
+            const errorMessages = parseResult.errors?.map((e) => e.message).join('; ') || 'Unknown parsing error';
+            console.log('[API/validate] Parse errors:', errorMessages);
+            return addCorsHeaders(
+              badRequest(`File parsing failed: ${errorMessages}`),
+              securityResult.origin ?? null
+            );
+          }
+
+          console.log('[API/validate] Calling validateParsedReport');
+          // We have a parsed report, skip XML-specific validation and go directly to engine validation
+          return await validateParsedReport(
+            parseResult.report!,
+            filename,
+            file.size,
+            parseResult.warnings || [],
+            securityResult.origin ?? null
+          );
+        } catch (parseError) {
+          console.error('[API/validate] Parse exception:', parseError);
+          return addCorsHeaders(
+            badRequest(`File parsing error: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`),
+            securityResult.origin ?? null
+          );
+        }
+      }
     } else if (contentType.includes('application/json')) {
+      console.log('[API/validate] Processing application/json');
       // Handle JSON body
       const body = await request.json();
 
@@ -213,6 +410,7 @@ export async function POST(request: NextRequest) {
         return payloadTooLarge('10MB');
       }
     } else {
+      console.log('[API/validate] Unsupported content type:', contentType);
       return unsupportedMediaType('Expected multipart/form-data or application/json');
     }
 

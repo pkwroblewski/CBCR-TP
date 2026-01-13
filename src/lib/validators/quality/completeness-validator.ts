@@ -88,6 +88,9 @@ export class CompletenessValidator extends BaseValidator {
     // Check jurisdiction coverage
     results.push(...this.validateJurisdictionCoverage(ctx));
 
+    // CMP-006: Check if Table 3 explains data anomalies
+    results.push(...this.validateAnomalyExplanations(ctx));
+
     // Check AdditionalInfo string lengths
     results.push(...this.validateAdditionalInfoStringLengths(ctx));
 
@@ -661,6 +664,170 @@ export class CompletenessValidator extends BaseValidator {
             );
           }
         }
+      }
+    }
+
+    return results;
+  }
+
+  // ===========================================================================
+  // CMP-006: ANOMALY EXPLANATION VALIDATION
+  // ===========================================================================
+
+  /**
+   * CMP-006: Validate that Table 3 (AdditionalInfo) contains explanations
+   * for data anomalies that tax authorities may question.
+   *
+   * Anomalies checked:
+   * - Negative stated capital
+   * - Negative income tax paid (refunds)
+   * - Negative accumulated earnings with positive capital
+   * - Null/zero financial data with entities present
+   */
+  private validateAnomalyExplanations(ctx: ValidationContext): ValidationResult[] {
+    const results: ValidationResult[] = [];
+    const additionalInfos = this.getAdditionalInfo(ctx);
+
+    // Build a text corpus of all Additional Info content
+    const infoTextByJurisdiction = new Map<string, string>();
+    const allInfoText: string[] = [];
+
+    for (const info of additionalInfos) {
+      const content = info.otherInfo?.map((oi) => oi.value).filter(Boolean).join(' ') ?? '';
+      allInfoText.push(content.toLowerCase());
+
+      // Map to specific jurisdictions if mentioned
+      if (info.resCountryCode) {
+        for (const code of info.resCountryCode) {
+          const existing = infoTextByJurisdiction.get(code) ?? '';
+          infoTextByJurisdiction.set(code, existing + ' ' + content.toLowerCase());
+        }
+      }
+    }
+
+    const globalInfoText = allInfoText.join(' ');
+
+    // Collect anomalies from each jurisdiction
+    type AnomalyType = 'negative_capital' | 'negative_tax_paid' | 'negative_accumulated' | 'zero_financials';
+
+    const anomalies: Array<{
+      jurisdiction: string;
+      type: AnomalyType;
+      message: string;
+    }> = [];
+
+    for (const [report] of this.iterateReports(ctx)) {
+      const j = report.resCountryCode;
+      const summary = report.summary;
+
+      // Negative stated capital
+      if (summary.capital.value < 0) {
+        anomalies.push({
+          jurisdiction: j,
+          type: 'negative_capital',
+          message: `negative stated capital (${this.formatCurrency(summary.capital.value)})`,
+        });
+      }
+
+      // Negative income tax paid
+      if (summary.taxPaid.value < 0) {
+        anomalies.push({
+          jurisdiction: j,
+          type: 'negative_tax_paid',
+          message: `negative income tax paid (${this.formatCurrency(summary.taxPaid.value)})`,
+        });
+      }
+
+      // Negative accumulated earnings with positive capital
+      if (summary.accumulatedEarnings.value < 0 && summary.capital.value > 0) {
+        anomalies.push({
+          jurisdiction: j,
+          type: 'negative_accumulated',
+          message: `negative accumulated earnings with positive capital`,
+        });
+      }
+
+      // All financial data is zero but entities exist
+      const hasEntities = report.constEntities.constituentEntity.length > 0;
+      const allFinancialsZero =
+        summary.totalRevenues.value === 0 &&
+        summary.profitOrLoss.value === 0 &&
+        summary.taxPaid.value === 0 &&
+        summary.taxAccrued.value === 0 &&
+        summary.capital.value === 0 &&
+        summary.accumulatedEarnings.value === 0 &&
+        summary.tangibleAssets.value === 0;
+
+      if (hasEntities && allFinancialsZero) {
+        anomalies.push({
+          jurisdiction: j,
+          type: 'zero_financials',
+          message: `all financial data is zero despite having entities`,
+        });
+      }
+    }
+
+    // Check if anomalies have explanations
+    for (const anomaly of anomalies) {
+      const jurisdictionInfo = infoTextByJurisdiction.get(anomaly.jurisdiction) ?? '';
+      const hasJurisdictionExplanation = jurisdictionInfo.length > 0;
+
+      // Check for keywords related to the anomaly type
+      let hasRelevantKeyword = false;
+
+      switch (anomaly.type) {
+        case 'negative_capital':
+          hasRelevantKeyword =
+            globalInfoText.includes('negative capital') ||
+            globalInfoText.includes('capital deficit') ||
+            globalInfoText.includes('negative equity') ||
+            globalInfoText.includes('accumulated loss') ||
+            (jurisdictionInfo.includes('capital') && jurisdictionInfo.includes('negative'));
+          break;
+
+        case 'negative_tax_paid':
+          hasRelevantKeyword =
+            globalInfoText.includes('tax refund') ||
+            globalInfoText.includes('refund') ||
+            globalInfoText.includes('negative tax') ||
+            globalInfoText.includes('overpayment') ||
+            (jurisdictionInfo.includes('tax') && (jurisdictionInfo.includes('refund') || jurisdictionInfo.includes('negative')));
+          break;
+
+        case 'negative_accumulated':
+          hasRelevantKeyword =
+            globalInfoText.includes('accumulated earnings') ||
+            globalInfoText.includes('retained earnings') ||
+            globalInfoText.includes('deficit') ||
+            jurisdictionInfo.includes('accumulated') ||
+            jurisdictionInfo.includes('retained');
+          break;
+
+        case 'zero_financials':
+          hasRelevantKeyword =
+            globalInfoText.includes('dormant') ||
+            globalInfoText.includes('inactive') ||
+            globalInfoText.includes('liquidat') ||
+            globalInfoText.includes('dissolved') ||
+            globalInfoText.includes('merged') ||
+            jurisdictionInfo.includes('dormant') ||
+            jurisdictionInfo.includes('inactive');
+          break;
+      }
+
+      if (!hasRelevantKeyword) {
+        results.push(
+          this.result('CMP-006')
+            .warning()
+            .message(
+              `${anomaly.jurisdiction}: Has ${anomaly.message} - consider adding explanation in Table 3 (Additional Information)`
+            )
+            .xpath(this.xpathAdditionalInfo(0) ?? '/CBC_OECD/CbcBody/AdditionalInfo')
+            .suggestion(
+              'Tax authorities may question unusual financial data. A brief explanation in Table 3 can preempt queries.'
+            )
+            .build()
+        );
       }
     }
 

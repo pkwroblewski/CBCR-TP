@@ -148,16 +148,31 @@ export class CrossFieldValidator extends BaseValidator {
       }
     }
 
-    // Check for opposite signs
+    // Check for opposite signs - elevated to ERROR for visibility
     if ((taxPaid > 0 && taxAccrued < 0) || (taxPaid < 0 && taxAccrued > 0)) {
+      results.push(
+        this.result('XFV-001')
+          .error()
+          .message(
+            `${jurisdiction}: TaxPaid (${this.formatCurrency(taxPaid)}) and TaxAccrued ` +
+            `(${this.formatCurrency(taxAccrued)}) have opposite signs - verify this is correct`
+          )
+          .xpath(`${basePath}/Summary`)
+          .suggestion('Opposite signs typically indicate tax refunds. Consider adding explanation in Table 3.')
+          .build()
+      );
+    }
+
+    // Check for negative tax paid (tax refund) - important to flag
+    if (taxPaid < 0) {
       results.push(
         this.result('XFV-001')
           .warning()
           .message(
-            `${jurisdiction}: TaxPaid (${this.formatCurrency(taxPaid)}) and TaxAccrued ` +
-            `(${this.formatCurrency(taxAccrued)}) have opposite signs`
+            `${jurisdiction}: Negative income tax paid (${this.formatCurrency(taxPaid)}) indicates a tax refund - verify and consider documenting reason in Table 3`
           )
-          .xpath(`${basePath}/Summary`)
+          .xpath(`${basePath}/Summary/TaxPaid`)
+          .suggestion('Tax refunds may require explanation in Additional Information.')
           .build()
       );
     }

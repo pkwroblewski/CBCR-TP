@@ -3,14 +3,16 @@
 /**
  * File Upload Hook
  *
- * Custom hook for managing XML file upload state and logic.
+ * Custom hook for managing CbCR file upload state and logic.
  * Handles drag/drop, file validation, and upload progress.
+ * Supports XML, Excel (.xlsx), and CSV (via ZIP) file formats.
  * Works without Convex - validation happens via API route.
  *
  * @module hooks/useFileUpload
  */
 
 import { useState, useCallback, useRef } from 'react';
+import type { SupportedFileType } from '@/types/file-upload';
 
 // =============================================================================
 // CONSTANTS
@@ -20,10 +22,17 @@ import { useState, useCallback, useRef } from 'react';
 export const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 /** Allowed file extensions */
-const ALLOWED_EXTENSIONS = ['.xml'];
+const ALLOWED_EXTENSIONS = ['.xml', '.xlsx', '.zip'];
 
 /** Allowed MIME types */
-const ALLOWED_MIME_TYPES = ['text/xml', 'application/xml'];
+const ALLOWED_MIME_TYPES = [
+  'text/xml',
+  'application/xml',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/zip',
+  'application/x-zip-compressed',
+];
 
 // =============================================================================
 // TYPES
@@ -44,15 +53,29 @@ export interface FileValidationError {
 }
 
 /**
- * Basic XML info extracted from file
+ * Basic file info extracted from file
  */
-export interface XmlPreviewInfo {
+export interface FilePreviewInfo {
+  /** Detected file type */
+  fileType: SupportedFileType | null;
+  /** Root element (for XML) */
   rootElement: string | null;
+  /** Namespace (for XML) */
   namespace: string | null;
+  /** Encoding (for XML) */
   encoding: string | null;
+  /** Version (for XML) */
   version: string | null;
+  /** Element count (for XML) */
   elementCount: number;
+  /** Sheet names (for Excel) */
+  sheetNames?: string[];
+  /** CSV file names (for ZIP) */
+  csvFileNames?: string[];
 }
+
+// Legacy alias for backwards compatibility
+export type XmlPreviewInfo = FilePreviewInfo;
 
 /**
  * Upload state
@@ -60,8 +83,10 @@ export interface XmlPreviewInfo {
 export interface UploadState {
   /** Selected file */
   file: File | null;
-  /** XML preview information */
-  xmlInfo: XmlPreviewInfo | null;
+  /** File preview information */
+  fileInfo: FilePreviewInfo | null;
+  /** @deprecated Use fileInfo instead */
+  xmlInfo: FilePreviewInfo | null;
   /** Current upload stage */
   stage: UploadStage;
   /** Upload progress (0-100) */
@@ -110,7 +135,8 @@ export interface UseFileUploadReturn extends UploadState {
 export function useFileUpload(): UseFileUploadReturn {
   const [state, setState] = useState<UploadState>({
     file: null,
-    xmlInfo: null,
+    fileInfo: null,
+    xmlInfo: null, // Legacy alias
     stage: 'idle',
     progress: 0,
     statusMessage: '',
@@ -166,7 +192,7 @@ export function useFileUpload(): UseFileUploadReturn {
       return {
         type: 'extension',
         message: `Invalid file type: ${file.name.split('.').pop()}`,
-        suggestion: 'Only XML files (.xml) are accepted',
+        suggestion: 'Accepted formats: XML (.xml), Excel (.xlsx), or CSV ZIP (.zip)',
       };
     }
 
@@ -178,63 +204,104 @@ export function useFileUpload(): UseFileUploadReturn {
   }, []);
 
   /**
-   * Extract basic XML info from file content
+   * Detect file type from file name
    */
-  const extractXmlInfo = useCallback(async (file: File): Promise<XmlPreviewInfo> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        
-        const xmlDeclMatch = content.match(/<\?xml[^?]*\?>/i);
-        let encoding: string | null = null;
-        let version: string | null = null;
-        
-        if (xmlDeclMatch) {
-          const encodingMatch = xmlDeclMatch[0].match(/encoding=["']([^"']+)["']/i);
-          const versionMatch = xmlDeclMatch[0].match(/version=["']([^"']+)["']/i);
-          encoding = encodingMatch?.[1] ?? null;
-          version = versionMatch?.[1] ?? null;
-        }
-        
-        const rootMatch = content.match(/<([a-zA-Z_][\w:.-]*)[^>]*>/);
-        const rootElement = rootMatch?.[1] ?? null;
-        
-        let namespace: string | null = null;
-        if (rootElement) {
-          const rootElementMatch = content.match(new RegExp(`<${rootElement}[^>]*>`));
-          if (rootElementMatch) {
-            const nsMatch = rootElementMatch[0].match(/xmlns(?::[^=]+)?=["']([^"']+)["']/);
-            namespace = nsMatch?.[1] ?? null;
-          }
-        }
-        
-        const elementCount = (content.match(/<[a-zA-Z]/g) || []).length;
-        
-        resolve({
-          rootElement,
-          namespace,
-          encoding,
-          version,
-          elementCount,
-        });
-      };
-      
-      reader.onerror = () => {
-        resolve({
-          rootElement: null,
-          namespace: null,
-          encoding: null,
-          version: null,
-          elementCount: 0,
-        });
-      };
-      
-      const slice = file.slice(0, 10240);
-      reader.readAsText(slice);
-    });
+  const detectFileType = useCallback((fileName: string): SupportedFileType | null => {
+    const ext = fileName.toLowerCase().split('.').pop();
+    if (ext === 'xml') return 'xml';
+    if (ext === 'xlsx') return 'xlsx';
+    if (ext === 'zip') return 'csv-zip';
+    return null;
   }, []);
+
+  /**
+   * Extract basic file info from file content
+   */
+  const extractFileInfo = useCallback(async (file: File): Promise<FilePreviewInfo> => {
+    const fileType = detectFileType(file.name);
+
+    // Default preview info
+    const defaultInfo: FilePreviewInfo = {
+      fileType,
+      rootElement: null,
+      namespace: null,
+      encoding: null,
+      version: null,
+      elementCount: 0,
+    };
+
+    if (fileType === 'xml') {
+      // Extract XML-specific info
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+
+          const xmlDeclMatch = content.match(/<\?xml[^?]*\?>/i);
+          let encoding: string | null = null;
+          let version: string | null = null;
+
+          if (xmlDeclMatch) {
+            const encodingMatch = xmlDeclMatch[0].match(/encoding=["']([^"']+)["']/i);
+            const versionMatch = xmlDeclMatch[0].match(/version=["']([^"']+)["']/i);
+            encoding = encodingMatch?.[1] ?? null;
+            version = versionMatch?.[1] ?? null;
+          }
+
+          const rootMatch = content.match(/<([a-zA-Z_][\w:.-]*)[^>]*>/);
+          const rootElement = rootMatch?.[1] ?? null;
+
+          let namespace: string | null = null;
+          if (rootElement) {
+            const rootElementMatch = content.match(new RegExp(`<${rootElement}[^>]*>`));
+            if (rootElementMatch) {
+              const nsMatch = rootElementMatch[0].match(/xmlns(?::[^=]+)?=["']([^"']+)["']/);
+              namespace = nsMatch?.[1] ?? null;
+            }
+          }
+
+          const elementCount = (content.match(/<[a-zA-Z]/g) || []).length;
+
+          resolve({
+            fileType: 'xml',
+            rootElement,
+            namespace,
+            encoding,
+            version,
+            elementCount,
+          });
+        };
+
+        reader.onerror = () => resolve(defaultInfo);
+
+        const slice = file.slice(0, 10240);
+        reader.readAsText(slice);
+      });
+    }
+
+    if (fileType === 'xlsx') {
+      // For Excel, we'll get sheet names during the actual parsing
+      // Just return basic info for now
+      return {
+        ...defaultInfo,
+        fileType: 'xlsx',
+      };
+    }
+
+    if (fileType === 'csv-zip') {
+      // For CSV ZIP, we'll get file names during actual parsing
+      return {
+        ...defaultInfo,
+        fileType: 'csv-zip',
+      };
+    }
+
+    return defaultInfo;
+  }, [detectFileType]);
+
+  // Legacy alias
+  const extractXmlInfo = extractFileInfo;
 
   /**
    * Process a selected file
@@ -244,6 +311,7 @@ export function useFileUpload(): UseFileUploadReturn {
     if (validationError) {
       updateState({
         file: null,
+        fileInfo: null,
         xmlInfo: null,
         stage: 'error',
         error: validationError,
@@ -259,30 +327,36 @@ export function useFileUpload(): UseFileUploadReturn {
     });
 
     try {
-      const xmlInfo = await extractXmlInfo(file);
-      
+      const fileInfo = await extractFileInfo(file);
+
       updateState({
         file,
-        xmlInfo,
+        fileInfo,
+        xmlInfo: fileInfo, // Legacy alias
         stage: 'idle',
         progress: 0,
         statusMessage: '',
         error: null,
       });
     } catch {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const fileTypeHint =
+        ext === 'xlsx' ? 'Excel' : ext === 'zip' ? 'ZIP' : 'XML';
+
       updateState({
         file: null,
+        fileInfo: null,
         xmlInfo: null,
         stage: 'error',
         error: {
           type: 'parse',
           message: 'Failed to read file',
-          suggestion: 'The file may be corrupted or not a valid XML file',
+          suggestion: `The file may be corrupted or not a valid ${fileTypeHint} file`,
         },
         statusMessage: 'Failed to read file',
       });
     }
-  }, [validateFile, extractXmlInfo, updateState]);
+  }, [validateFile, extractFileInfo, updateState]);
 
   /**
    * Handle file drop
@@ -348,6 +422,7 @@ export function useFileUpload(): UseFileUploadReturn {
   const clearFile = useCallback(() => {
     setState({
       file: null,
+      fileInfo: null,
       xmlInfo: null,
       stage: 'idle',
       progress: 0,
@@ -375,11 +450,15 @@ export function useFileUpload(): UseFileUploadReturn {
         error: {
           type: 'empty',
           message: 'No file selected',
-          suggestion: 'Please select an XML file first',
+          suggestion: 'Please select a file first',
         },
       });
       return null;
     }
+
+    const fileType = detectFileType(state.file.name);
+    const fileTypeLabel =
+      fileType === 'xlsx' ? 'Excel' : fileType === 'csv-zip' ? 'CSV' : 'XML';
 
     try {
       // Stage 1: Uploading
@@ -396,12 +475,9 @@ export function useFileUpload(): UseFileUploadReturn {
       updateState({
         stage: 'parsing',
         progress: 40,
-        statusMessage: 'Parsing XML structure...',
+        statusMessage: `Parsing ${fileTypeLabel} structure...`,
       });
 
-      // Read file content for validation
-      const content = await state.file.text();
-      
       updateState({ progress: 50 });
 
       // Stage 3: Validating via API
@@ -411,14 +487,14 @@ export function useFileUpload(): UseFileUploadReturn {
         statusMessage: 'Running validation checks...',
       });
 
-      // Call validation API
+      // Use FormData for all file types (works for binary files)
+      const formData = new FormData();
+      formData.append('file', state.file);
+
+      // Call validation API with multipart form data
       const response = await fetch('/api/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: state.file.name,
-          content,
-        }),
+        body: formData,
       });
 
       updateState({ progress: 80 });

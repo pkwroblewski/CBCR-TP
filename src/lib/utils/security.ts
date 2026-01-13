@@ -422,8 +422,11 @@ export function sanitizeFilename(filename: string): string | null {
     return null;
   }
 
-  // Must have .xml extension for this application
-  if (!sanitized.toLowerCase().endsWith('.xml')) {
+  // Must have valid extension for this application (XML, Excel, or CSV ZIP)
+  const validExtensions = ['.xml', '.xlsx', '.zip'];
+  const lowerName = sanitized.toLowerCase();
+  const hasValidExtension = validExtensions.some(ext => lowerName.endsWith(ext));
+  if (!hasValidExtension) {
     return null;
   }
 

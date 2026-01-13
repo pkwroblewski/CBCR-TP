@@ -9,6 +9,7 @@
 export { ValidationSummary } from './ValidationSummary';
 export { ValidationResultCard } from './ValidationResultCard';
 export { ValidationResultsList } from './ValidationResultsList';
+export { GroupedValidationResults } from './GroupedValidationResults';
 export { CategoryTabs } from './CategoryTabs';
 export { ValidationProgress } from './ValidationProgress';
 export { QuickActions, QuickActionsCard } from './QuickActions';
