@@ -39,6 +39,8 @@ interface ValidationResultsListProps {
   results: ValidationResult[];
   /** Maximum height before scrolling */
   maxHeight?: string;
+  /** Minimum height for the results container */
+  minHeight?: string;
   /** Additional CSS classes */
   className?: string;
   /** AI explanations keyed by finding ID (ruleId-index) */
@@ -119,6 +121,7 @@ const CATEGORY_OPTIONS: { value: ValidationCategory; label: string }[] = [
 export function ValidationResultsList({
   results,
   maxHeight = '600px',
+  minHeight = '400px',
   className,
   aiExplanations,
   generatingFindingId,
@@ -370,8 +373,11 @@ export function ValidationResultsList({
 
       {/* Results list */}
       <div
-        className="space-y-3 overflow-y-auto pr-2 scrollbar-thin"
-        style={{ maxHeight }}
+        className="space-y-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700"
+        style={{
+          maxHeight: maxHeight === 'none' ? undefined : maxHeight,
+          minHeight,
+        }}
       >
         {filteredResults.length === 0 ? (
           <div className="text-center py-16 glass rounded-2xl border border-white/20 animate-fade-in">

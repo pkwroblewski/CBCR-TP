@@ -22,6 +22,7 @@ import { ChevronRight, Lightbulb, CheckCircle2 } from 'lucide-react';
 interface GroupedValidationResultsProps {
   results: ValidationResult[];
   maxHeight?: string;
+  minHeight?: string;
   className?: string;
   maxSampleItems?: number;
 }
@@ -232,6 +233,7 @@ function ResultRow({ group, maxSampleItems }: { group: GroupedResult; maxSampleI
 export function GroupedValidationResults({
   results,
   maxHeight = '600px',
+  minHeight = '400px',
   className,
   maxSampleItems = 5,
 }: GroupedValidationResultsProps) {
@@ -263,8 +265,8 @@ export function GroupedValidationResults({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Stats bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50 rounded-lg">
+      {/* Stats bar - Responsive with labeled severity counts */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-slate-800/50 rounded-lg">
         <div className="flex items-center gap-2">
           <span className="text-2xl font-bold text-slate-100">{stats.total}</span>
           <span className="text-sm text-slate-400">
@@ -272,29 +274,33 @@ export function GroupedValidationResults({
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           {stats.bySeverity.critical > 0 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5" aria-label={`${stats.bySeverity.critical} critical issues`}>
               <div className="w-2 h-2 rounded-full bg-red-500" />
               <span className="text-sm font-medium text-red-400">{stats.bySeverity.critical}</span>
+              <span className="text-xs text-red-400/70 hidden sm:inline">Critical</span>
             </div>
           )}
           {stats.bySeverity.error > 0 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5" aria-label={`${stats.bySeverity.error} errors`}>
               <div className="w-2 h-2 rounded-full bg-orange-500" />
               <span className="text-sm font-medium text-orange-400">{stats.bySeverity.error}</span>
+              <span className="text-xs text-orange-400/70 hidden sm:inline">Errors</span>
             </div>
           )}
           {stats.bySeverity.warning > 0 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5" aria-label={`${stats.bySeverity.warning} warnings`}>
               <div className="w-2 h-2 rounded-full bg-amber-500" />
               <span className="text-sm font-medium text-amber-400">{stats.bySeverity.warning}</span>
+              <span className="text-xs text-amber-400/70 hidden sm:inline">Warnings</span>
             </div>
           )}
           {stats.bySeverity.info > 0 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5" aria-label={`${stats.bySeverity.info} info items`}>
               <div className="w-2 h-2 rounded-full bg-slate-400" />
               <span className="text-sm font-medium text-slate-400">{stats.bySeverity.info}</span>
+              <span className="text-xs text-slate-400/70 hidden sm:inline">Info</span>
             </div>
           )}
         </div>
@@ -302,8 +308,11 @@ export function GroupedValidationResults({
 
       {/* Results list */}
       <div
-        className="bg-slate-900/50 rounded-lg border border-slate-800 overflow-hidden overflow-y-auto"
-        style={{ maxHeight }}
+        className="bg-slate-900/50 rounded-lg border border-slate-800 overflow-hidden overflow-y-auto scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700"
+        style={{
+          maxHeight: maxHeight === 'none' ? undefined : maxHeight,
+          minHeight,
+        }}
       >
         {groupedResults.map((group) => (
           <ResultRow key={group.ruleId} group={group} maxSampleItems={maxSampleItems} />

@@ -63,17 +63,21 @@ export const generateExplanation = action({
     }),
   },
   handler: async (ctx, args) => {
+    console.log("[AI Action] generateExplanation called for:", args.finding.ruleCode);
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    
+
     if (!apiKey) {
-      console.warn("ANTHROPIC_API_KEY not configured - returning placeholder explanation");
+      console.error("[AI Action] ANTHROPIC_API_KEY not configured!");
       return {
         explanation: `[AI explanation unavailable] ${args.finding.title}: ${args.finding.description}`,
         inputTokens: 0,
         outputTokens: 0,
-        error: "ANTHROPIC_API_KEY not configured",
+        error: "ANTHROPIC_API_KEY not configured in Convex environment",
       };
     }
+
+    console.log("[AI Action] API key found, calling Anthropic...");
 
     try {
       const anthropic = new Anthropic({
@@ -91,13 +95,15 @@ export const generateExplanation = action({
       const textContent = response.content.find((block) => block.type === "text");
       const explanation = textContent?.type === "text" ? textContent.text : "";
 
+      console.log("[AI Action] Success! Tokens:", response.usage.input_tokens, "/", response.usage.output_tokens);
+
       return {
         explanation,
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
       };
     } catch (error) {
-      console.error("Error generating AI explanation:", error);
+      console.error("[AI Action] Error generating AI explanation:", error);
       return {
         explanation: `[AI explanation failed] ${args.finding.title}: ${args.finding.description}`,
         inputTokens: 0,

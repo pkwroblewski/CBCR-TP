@@ -80,10 +80,10 @@ export function CategoryTabs({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Controls Row - Compact and clean */}
-      <div className="flex items-center justify-between">
+      {/* Controls Row - Responsive: stack on mobile, row on desktop */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         {/* View Toggle */}
-        <div className="inline-flex items-center bg-slate-800/50 rounded-lg p-0.5">
+        <div className="inline-flex items-center bg-slate-800/50 rounded-lg p-0.5 flex-shrink-0">
           <button
             onClick={() => setViewMode('grouped')}
             className={cn(
@@ -110,8 +110,8 @@ export function CategoryTabs({
           </button>
         </div>
 
-        {/* Category Pills */}
-        <div className="flex items-center gap-1">
+        {/* Category Pills - Horizontal scroll on mobile */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent min-w-0">
           {CATEGORIES.map((category) => {
             const count = getCountForCategory(category.value);
             const isActive = activeTab === category.id;
@@ -121,7 +121,7 @@ export function CategoryTabs({
                 key={category.id}
                 onClick={() => setActiveTab(category.id)}
                 className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+                  'px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap flex-shrink-0',
                   isActive
                     ? 'bg-blue-600 text-white'
                     : count > 0
@@ -144,17 +144,19 @@ export function CategoryTabs({
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content - Uses min-height with scrollable container */}
       {viewMode === 'grouped' ? (
         <GroupedValidationResults
           results={activeResults}
-          maxHeight="calc(100vh - 520px)"
+          maxHeight="none"
+          minHeight="500px"
           maxSampleItems={5}
         />
       ) : (
         <ValidationResultsList
           results={activeResults}
-          maxHeight="calc(100vh - 480px)"
+          maxHeight="none"
+          minHeight="500px"
           aiExplanations={aiExplanations}
           generatingFindingId={generatingFindingId}
           onRequestAiExplanation={onRequestAiExplanation}

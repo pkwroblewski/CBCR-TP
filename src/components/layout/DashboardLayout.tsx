@@ -51,12 +51,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main content area */}
         <main
           className={cn(
-            'flex-1 min-h-[calc(100vh-3.5rem)]',
+            'flex-1 min-h-[calc(100vh-3.5rem)] min-w-0 overflow-x-hidden',
             'transition-all duration-300 ease-out'
           )}
         >
           {/* Content container */}
-          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in overflow-x-hidden">
             {children}
           </div>
         </main>

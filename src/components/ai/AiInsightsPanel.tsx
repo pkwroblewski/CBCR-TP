@@ -155,20 +155,20 @@ export function AiInsightsPanel({
             {onGenerateAll && (
               <Button
                 onClick={onGenerateAll}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white"
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white text-sm"
               >
-                <Zap className="h-4 w-4 mr-2" />
-                Generate All AI Explanations
+                <Zap className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="truncate">Generate All AI</span>
               </Button>
             )}
             {onGenerateSummary && (
               <Button
                 variant="outline"
                 onClick={onGenerateSummary}
-                className="w-full border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 text-sm"
               >
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Summary Only
+                <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="truncate">Summary Only</span>
               </Button>
             )}
           </div>

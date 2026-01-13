@@ -69,30 +69,30 @@ const SEVERITY_CONFIG: Record<string, SeverityConfig> = {
   critical: {
     label: 'Critical',
     icon: <XCircle className="h-4 w-4" />,
-    color: 'text-red-700',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30',
   },
   error: {
     label: 'Errors',
     icon: <AlertCircle className="h-4 w-4" />,
-    color: 'text-orange-700',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-200',
+    color: 'text-orange-400',
+    bgColor: 'bg-orange-500/10',
+    borderColor: 'border-orange-500/30',
   },
   warning: {
     label: 'Warnings',
     icon: <AlertTriangle className="h-4 w-4" />,
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/30',
   },
   info: {
     label: 'Info',
     icon: <Info className="h-4 w-4" />,
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/10',
+    borderColor: 'border-blue-500/30',
   },
 };
 
@@ -128,17 +128,17 @@ export function ValidationSummary({
     : 100;
 
   return (
-    <Card className={cn('overflow-hidden', className)}>
+    <Card className={cn('overflow-hidden bg-slate-900/50 border-slate-800', className)}>
       {/* Header with pass/fail status */}
       <CardHeader
         className={cn(
-          'border-b',
-          isValid ? 'bg-emerald-50' : 'bg-red-50'
+          'border-b border-slate-800',
+          isValid ? 'bg-emerald-500/10' : 'bg-red-500/10'
         )}
       >
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileCheck className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-lg text-slate-100">
+            <FileCheck className="h-5 w-5 text-blue-400" />
             Validation Summary
           </CardTitle>
           <Badge
@@ -167,13 +167,13 @@ export function ValidationSummary({
         {/* Score progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Validation Score</span>
-            <span className="font-semibold text-slate-900">{passRate}%</span>
+            <span className="text-slate-400">Validation Score</span>
+            <span className="font-semibold text-slate-100">{passRate}%</span>
           </div>
           <Progress
             value={passRate}
             className={cn(
-              'h-3',
+              'h-3 bg-slate-700',
               passRate >= 80 && '[&>div]:bg-emerald-500',
               passRate >= 50 && passRate < 80 && '[&>div]:bg-amber-500',
               passRate < 50 && '[&>div]:bg-red-500'
@@ -209,7 +209,7 @@ export function ValidationSummary({
                   <p className={cn('text-2xl font-bold', config.color)}>
                     {count}
                   </p>
-                  <p className="text-xs text-slate-600">{config.label}</p>
+                  <p className="text-xs text-slate-400">{config.label}</p>
                 </div>
               </div>
             );
@@ -219,12 +219,12 @@ export function ValidationSummary({
         {/* Report metadata */}
         {metadata && (
           <>
-            <Separator />
+            <Separator className="bg-slate-700" />
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               {metadata.filename && (
                 <div>
                   <p className="text-slate-500">Filename</p>
-                  <p className="font-medium text-slate-900 truncate" title={metadata.filename}>
+                  <p className="font-medium text-slate-200 truncate" title={metadata.filename}>
                     {metadata.filename}
                   </p>
                 </div>
@@ -232,19 +232,19 @@ export function ValidationSummary({
               {metadata.fiscalYear && (
                 <div>
                   <p className="text-slate-500">Fiscal Year</p>
-                  <p className="font-medium text-slate-900">{metadata.fiscalYear}</p>
+                  <p className="font-medium text-slate-200">{metadata.fiscalYear}</p>
                 </div>
               )}
               {metadata.upeJurisdiction && (
                 <div>
                   <p className="text-slate-500">UPE Jurisdiction</p>
-                  <p className="font-medium text-slate-900">{metadata.upeJurisdiction}</p>
+                  <p className="font-medium text-slate-200">{metadata.upeJurisdiction}</p>
                 </div>
               )}
               {metadata.upeName && (
                 <div>
                   <p className="text-slate-500">UPE Name</p>
-                  <p className="font-medium text-slate-900 truncate" title={metadata.upeName}>
+                  <p className="font-medium text-slate-200 truncate" title={metadata.upeName}>
                     {metadata.upeName}
                   </p>
                 </div>
@@ -252,13 +252,13 @@ export function ValidationSummary({
               {metadata.jurisdictionCount !== undefined && (
                 <div>
                   <p className="text-slate-500">Jurisdictions</p>
-                  <p className="font-medium text-slate-900">{metadata.jurisdictionCount}</p>
+                  <p className="font-medium text-slate-200">{metadata.jurisdictionCount}</p>
                 </div>
               )}
               {metadata.entityCount !== undefined && (
                 <div>
                   <p className="text-slate-500">Entities</p>
-                  <p className="font-medium text-slate-900">{metadata.entityCount}</p>
+                  <p className="font-medium text-slate-200">{metadata.entityCount}</p>
                 </div>
               )}
             </div>
@@ -268,11 +268,11 @@ export function ValidationSummary({
         {/* Category breakdown - collapsible */}
         {byCategory && Object.keys(byCategory).length > 0 && (
           <>
-            <Separator />
+            <Separator className="bg-slate-700" />
             <div>
               <button
                 onClick={() => setShowCategories(!showCategories)}
-                className="flex items-center justify-between w-full text-sm text-slate-600 hover:text-slate-900 transition-colors"
+                className="flex items-center justify-between w-full text-sm text-slate-400 hover:text-slate-200 transition-colors"
               >
                 <span className="font-medium">Issues by Category</span>
                 {showCategories ? (
@@ -287,12 +287,12 @@ export function ValidationSummary({
                   {Object.entries(byCategory).map(([category, count]) => (
                     <div
                       key={category}
-                      className="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-lg"
+                      className="flex items-center justify-between py-2 px-3 bg-slate-800/50 rounded-lg"
                     >
-                      <span className="text-sm text-slate-700">
+                      <span className="text-sm text-slate-300">
                         {CATEGORY_LABELS[category] || category}
                       </span>
-                      <Badge variant="secondary">{count}</Badge>
+                      <Badge variant="secondary" className="bg-slate-700 text-slate-300">{count}</Badge>
                     </div>
                   ))}
                 </div>

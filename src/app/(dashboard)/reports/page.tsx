@@ -70,25 +70,25 @@ export default function ReportsPage() {
   const [isLocalLoading, setIsLocalLoading] = useState(true);
   const itemsPerPage = 10;
 
-  // Load Convex reports
-  const convexReports = useQuery(api.validationReports.list) ?? [];
+  // Load Convex reports (using listRecent which doesn't require auth)
+  const convexReports = useQuery(api.validationReports.listRecent, { limit: 50 }) ?? [];
   const deleteConvexReport = useMutation(api.validationReports.remove);
 
   // Load reports from sessionStorage
   useEffect(() => {
     try {
       const localReports: LocalReport[] = [];
-      
+
       // Search sessionStorage for validation reports
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
         if (key?.startsWith('validation-report-')) {
           try {
             const data = JSON.parse(sessionStorage.getItem(key) || '{}');
-            // Skip if this is a Convex report (has convexId)
-            if (data.id && !data.convexId) {
+            // Include ALL reports from sessionStorage - we'll dedupe against Convex later
+            if (data.id) {
               localReports.push({
-                id: data.id,
+                id: data.convexId || data.id, // Prefer convexId if available for matching
                 filename: data.filename || 'Unknown',
                 uploadedAt: data.uploadedAt || new Date().toISOString(),
                 status: data.isValid ? 'passed' : 'failed',
@@ -96,7 +96,7 @@ export default function ReportsPage() {
                 summary: data.summary,
                 fiscalYear: data.fiscalYear,
                 upeJurisdiction: data.upeJurisdiction,
-                source: 'local',
+                source: data.convexId ? 'convex' : 'local', // Mark as convex if it has convexId
               });
             }
           } catch {
@@ -113,11 +113,12 @@ export default function ReportsPage() {
     }
   }, []);
 
-  // Combine Convex and local reports
+  // Combine Convex and local reports (with deduplication)
   const reports = useMemo(() => {
     const combined: LocalReport[] = [];
-    
-    // Add Convex reports
+    const seenIds = new Set<string>();
+
+    // Add Convex reports first (they're authoritative)
     for (const r of convexReports) {
       const validationResults = r.validationResults as { isValid?: boolean; summary?: LocalReport['summary'] } | undefined;
       combined.push({
@@ -136,30 +137,23 @@ export default function ReportsPage() {
         upeJurisdiction: undefined, // Not stored directly
         source: 'convex',
       });
+      seenIds.add(r._id);
     }
-    
-    // Add local-only reports (those not in Convex)
+
+    // Add local reports that aren't duplicates of Convex reports
     for (const local of localReportsState) {
-      // Check if already in Convex by looking at sessionStorage
-      const hasConvexVersion = convexReports.some(c => {
-        const cached = sessionStorage.getItem(`validation-report-${c._id}`);
-        if (cached) {
-          const data = JSON.parse(cached);
-          return data.localId === local.id;
-        }
-        return false;
-      });
-      
-      if (!hasConvexVersion) {
+      // Skip if we already have this report from Convex
+      if (!seenIds.has(local.id)) {
         combined.push(local);
+        seenIds.add(local.id);
       }
     }
-    
+
     // Sort by date (newest first)
-    combined.sort((a, b) => 
+    combined.sort((a, b) =>
       new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     );
-    
+
     return combined;
   }, [convexReports, localReportsState]);
 

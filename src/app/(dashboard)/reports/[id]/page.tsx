@@ -64,9 +64,11 @@ export default function ReportDetailPage({
   const trackAiUsage = useMutation(api.aiUsage.trackUsage);
 
   // Try to fetch from Convex if this looks like a Convex ID
+  // Convex IDs are base64-like strings without hyphens
   const isConvexId = id && !id.startsWith('local-') && !id.includes('-');
+  // Use getById which doesn't require auth (having the ID is authorization)
   const convexReport = useQuery(
-    api.validationReports.get,
+    api.validationReports.getById,
     isConvexId ? { id: id as any } : 'skip'
   );
 
@@ -122,6 +124,8 @@ export default function ReportDetailPage({
   const handleGenerateSingleExplanation = useCallback(async (findingId: string, finding: ValidationResult) => {
     if (!report) return;
 
+    console.log('[AI] Starting single explanation for:', findingId);
+
     try {
       setGeneratingFindingId(findingId);
       setAiError(null);
@@ -140,7 +144,14 @@ export default function ReportDetailPage({
         },
       });
 
+      console.log('[AI] Result received:', {
+        hasError: !!result.error,
+        explanationLength: result.explanation?.length,
+        tokens: { input: result.inputTokens, output: result.outputTokens }
+      });
+
       if (result.error) {
+        console.error('[AI] Error from action:', result.error);
         setAiError(result.error);
       } else {
         setAiExplanations(prev => ({
@@ -161,7 +172,7 @@ export default function ReportDetailPage({
         }
       }
     } catch (err) {
-      console.error('Failed to generate AI explanation:', err);
+      console.error('[AI] Failed to generate AI explanation:', err);
       setAiError(err instanceof Error ? err.message : 'Failed to generate explanation');
     } finally {
       setGeneratingFindingId(null);
@@ -173,6 +184,8 @@ export default function ReportDetailPage({
    */
   const handleGenerateAllExplanations = useCallback(async () => {
     if (!report || report.results.length === 0) return;
+
+    console.log('[AI] Starting batch explanation generation');
 
     try {
       setIsGeneratingAi(true);
@@ -191,6 +204,8 @@ export default function ReportDetailPage({
         }))
         .filter(f => !aiExplanations[f.id]);
 
+      console.log('[AI] Findings to explain:', findingsToExplain.length);
+
       if (findingsToExplain.length === 0) {
         setIsGeneratingAi(false);
         return;
@@ -203,6 +218,13 @@ export default function ReportDetailPage({
           jurisdiction: report.upeJurisdiction,
         },
         maxConcurrent: 3,
+      });
+
+      console.log('[AI] Batch result:', {
+        explanationsCount: result.explanations.length,
+        totalInputTokens: result.totalInputTokens,
+        totalOutputTokens: result.totalOutputTokens,
+        errors: result.explanations.filter(e => e.error).length,
       });
 
       // Update explanations
@@ -227,7 +249,7 @@ export default function ReportDetailPage({
         console.warn('Failed to track AI usage:', e);
       }
     } catch (err) {
-      console.error('Failed to generate AI explanations:', err);
+      console.error('[AI] Failed to generate AI explanations:', err);
       setAiError(err instanceof Error ? err.message : 'Failed to generate explanations');
     } finally {
       setIsGeneratingAi(false);
@@ -240,6 +262,8 @@ export default function ReportDetailPage({
   const handleGenerateSummary = useCallback(async () => {
     if (!report) return;
 
+    console.log('[AI] Starting executive summary generation');
+
     try {
       setIsGeneratingAi(true);
       setAiError(null);
@@ -251,6 +275,8 @@ export default function ReportDetailPage({
         aiExplanation: aiExplanations[`${r.ruleId}-${i}`],
       }));
 
+      console.log('[AI] Sending findings for summary:', findings.length);
+
       const result = await generateExecutiveSummary({
         findings,
         metadata: {
@@ -261,7 +287,14 @@ export default function ReportDetailPage({
         },
       });
 
+      console.log('[AI] Summary result:', {
+        hasError: !!result.error,
+        summaryLength: result.summary?.length,
+        tokens: { input: result.inputTokens, output: result.outputTokens }
+      });
+
       if (result.error) {
+        console.error('[AI] Summary error:', result.error);
         setAiError(result.error);
       } else {
         setAiSummary(result.summary);
@@ -279,7 +312,7 @@ export default function ReportDetailPage({
         }
       }
     } catch (err) {
-      console.error('Failed to generate AI summary:', err);
+      console.error('[AI] Failed to generate AI summary:', err);
       setAiError(err instanceof Error ? err.message : 'Failed to generate summary');
     } finally {
       setIsGeneratingAi(false);
@@ -292,8 +325,28 @@ export default function ReportDetailPage({
         setIsLoading(true);
         setError(null);
 
-        // First check sessionStorage for recently validated report
-        const cachedReport = sessionStorage.getItem(`validation-report-${id}`);
+        // First check sessionStorage for recently validated report (try exact ID)
+        let cachedReport = sessionStorage.getItem(`validation-report-${id}`);
+
+        // If not found by exact ID, search all sessionStorage for matching convexId or localId
+        if (!cachedReport) {
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key?.startsWith('validation-report-')) {
+              try {
+                const data = JSON.parse(sessionStorage.getItem(key) || '{}');
+                // Match by convexId, localId, or id field
+                if (data.convexId === id || data.localId === id || data.id === id) {
+                  cachedReport = JSON.stringify(data);
+                  break;
+                }
+              } catch {
+                // Skip invalid entries
+              }
+            }
+          }
+        }
+
         if (cachedReport) {
           const parsed = JSON.parse(cachedReport);
           setReport(parsed);
@@ -305,7 +358,7 @@ export default function ReportDetailPage({
         // Check if this looks like an old Supabase ID (numeric or UUID format)
         // Convex IDs are base64-like strings that are longer
         const isLegacyId = /^[0-9]+$/.test(id) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-        
+
         if (isLegacyId) {
           throw new Error(
             'This report was stored in the previous database (Supabase) which has been migrated. ' +
@@ -355,7 +408,7 @@ export default function ReportDetailPage({
 
         // If Convex returned null, report not found
         if (isConvexId && convexReport === null) {
-          throw new Error('Report not found. It may have been deleted.');
+          throw new Error('Report not found. It may have been deleted or you may not have access.');
         }
 
         // For local IDs, the data should be in sessionStorage
@@ -421,90 +474,65 @@ export default function ReportDetailPage({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+    <div className="space-y-4 overflow-x-hidden">
+      {/* Header - More compact */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild className="-ml-2">
             <Link href="/reports">
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Reports
+              Back
             </Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-100 flex items-center gap-2">
-            <FileCheck2 className="h-7 w-7 text-blue-400" />
-            Validation Report
-          </h1>
-          <p className="text-slate-400 mt-1 truncate max-w-xl flex items-center gap-2" title={report.filename}>
-            {report.filename}
-            {isConvexReport && (
-              <span className="flex items-center gap-1 text-xs text-blue-400">
-                <Cloud className="h-3 w-3" />
-                Saved
-              </span>
-            )}
-          </p>
+          <div>
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              <FileCheck2 className="h-5 w-5 text-blue-400" />
+              {report.filename}
+              {isConvexReport && (
+                <span className="flex items-center gap-1 text-xs text-blue-400 font-normal">
+                  <Cloud className="h-3 w-3" />
+                </span>
+              )}
+            </h1>
+          </div>
         </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/validate?revalidate=${id}`}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Re-validate
+          </Link>
+        </Button>
+      </div>
+
+      {/* Compact metadata row - Responsive grid on mobile */}
+      <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center gap-3 md:gap-4 px-4 py-3 bg-slate-900/50 rounded-lg border border-slate-800">
         <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/validate?revalidate=${id}`}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Re-validate
-            </Link>
-          </Button>
+          <Calendar className="h-4 w-4 text-slate-500 flex-shrink-0" />
+          <span className="text-sm text-slate-400">FY:</span>
+          <span className="text-sm font-medium text-slate-200">{report.fiscalYear}</span>
+        </div>
+        <div className="hidden md:block w-px h-4 bg-slate-700" />
+        <div className="flex items-center gap-2">
+          <Globe className="h-4 w-4 text-slate-500 flex-shrink-0" />
+          <span className="text-sm text-slate-400">UPE:</span>
+          <span className="text-sm font-medium text-slate-200 truncate">{report.upeJurisdiction}</span>
+        </div>
+        <div className="hidden md:block w-px h-4 bg-slate-700" />
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-slate-500 flex-shrink-0" />
+          <span className="text-sm font-medium text-slate-200">{report.entityCount}</span>
+          <span className="text-sm text-slate-400">entities</span>
+        </div>
+        <div className="hidden md:block w-px h-4 bg-slate-700" />
+        <div className="flex items-center gap-2">
+          <Hash className="h-4 w-4 text-slate-500 flex-shrink-0" />
+          <span className="text-sm font-medium text-slate-200">{report.jurisdictionCount}</span>
+          <span className="text-sm text-slate-400">jurisdictions</span>
         </div>
       </div>
 
-      {/* Metadata cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-900/50 border-slate-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-              <Calendar className="h-4 w-4" />
-              Fiscal Year
-            </div>
-            <p className="text-lg font-semibold text-slate-100">
-              {report.fiscalYear}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-slate-900/50 border-slate-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-              <Globe className="h-4 w-4" />
-              UPE Jurisdiction
-            </div>
-            <p className="text-lg font-semibold text-slate-100">
-              {report.upeJurisdiction}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-slate-900/50 border-slate-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-              <Building2 className="h-4 w-4" />
-              Entities
-            </div>
-            <p className="text-lg font-semibold text-slate-100">
-              {report.entityCount}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-slate-900/50 border-slate-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-              <Hash className="h-4 w-4" />
-              Jurisdictions
-            </div>
-            <p className="text-lg font-semibold text-slate-100">
-              {report.jurisdictionCount}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Summary and quick actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Summary and quick actions - More compact grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <ValidationSummary
             summary={report.summary}
@@ -521,7 +549,7 @@ export default function ReportDetailPage({
             durationMs={report.durationMs}
           />
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* AI Insights Panel */}
           <AiInsightsPanel
             totalFindings={report.results.length}
@@ -606,11 +634,9 @@ export default function ReportDetailPage({
         </Card>
       )}
 
-      {/* Results by category */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-100">Validation Results</h2>
-        </div>
+      {/* Results by category - Main content area */}
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-slate-100">Validation Results</h2>
         <CategoryTabs
           results={report.results}
           aiExplanations={aiExplanations}
