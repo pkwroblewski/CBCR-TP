@@ -116,17 +116,19 @@ export function CategoryTabs({
             const count = getCountForCategory(category.value);
             const isActive = activeTab === category.id;
 
+            const buttonStyle = isActive
+              ? 'bg-blue-600 text-white'
+              : count > 0
+                ? 'text-slate-300 hover:bg-slate-800'
+                : 'text-slate-500 hover:bg-slate-800/50';
+
             return (
               <button
                 key={category.id}
                 onClick={() => setActiveTab(category.id)}
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap flex-shrink-0',
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : count > 0
-                      ? 'text-slate-300 hover:bg-slate-800'
-                      : 'text-slate-500 hover:bg-slate-800/50'
+                  buttonStyle
                 )}
               >
                 {category.label}

@@ -13,7 +13,6 @@ import {
   Globe,
   Building2,
   ArrowRight,
-  ArrowLeft,
   Zap,
   AlertTriangle,
   BookOpen,
